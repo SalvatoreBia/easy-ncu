@@ -1,6 +1,7 @@
 import sys
 import os
 import configparser
+import cli_views
 
 
 debug = True
@@ -90,26 +91,19 @@ def get_SoL_dram_frequency(action):
     return get_metric(action, 'DRAM frequency', 'dram__cycles_elapsed.avg.per_second')
 
 def show_SpeedOfLight(action):
-    duration = get_SoL_kernel_duration(action)
-    sm_sol = get_SoL_compute_sm(action)
-    mem_sol = get_SoL_memory_throughput(action)
-    cycles = get_SoL_elapsed_cycles(action)
-    l1_sol = get_SoL_L1_throughput(action)
-    l2_sol = get_SoL_L2_throughput(action)
-    dram_sol = get_SoL_dram_throughput(action)
-    sm_freq = get_SoL_sm_frequency(action)
-    sm_active = get_SoL_sm_active_cycles(action)
-    dram_freq = get_SoL_dram_frequency(action)
-    print(duration)
-    print(sm_sol)
-    print(mem_sol)
-    print(cycles)
-    print(l1_sol)
-    print(l2_sol)
-    print(dram_sol)
-    print(sm_freq)
-    print(sm_active)
-    print(dram_freq)
+    sol_metrics = {
+        'duration': get_SoL_kernel_duration(action),
+        'sm_sol': get_SoL_compute_sm(action),
+        'mem_sol': get_SoL_memory_throughput(action),
+        'cycles': get_SoL_elapsed_cycles(action),
+        'l1_sol': get_SoL_L1_throughput(action),
+        'l2_sol': get_SoL_L2_throughput(action),
+        'dram_sol': get_SoL_dram_throughput(action),
+        'sm_freq': get_SoL_sm_frequency(action),
+        'sm_active': get_SoL_sm_active_cycles(action),
+        'dram_freq': get_SoL_dram_frequency(action)
+    }
+    cli_views.print_speed_of_light(action.name(), sol_metrics)
 
 ################################################
 #
@@ -133,16 +127,14 @@ def get_issue_slots_busy(action):
     return get_metric(action, 'Issue slots busy', 'sm__inst_issued.avg.pct_of_peak_sustained_active')
 
 def show_compute_workload_analysis(action):
-    exec_ipc_elapsed = get_executed_ipc_elapsed(action)
-    exec_ipc_active = get_executed_ipc_active(action)
-    issued_ipc_active = get_issued_ipc_active(action)
-    sm_busy = get_sm_busy(action)
-    issue_slots_busy = get_issue_slots_busy(action)
-    print(exec_ipc_elapsed)
-    print(exec_ipc_active)
-    print(issued_ipc_active)
-    print(sm_busy)
-    print(issue_slots_busy)
+    compute_metrics = {
+        'exec_ipc_elapsed': get_executed_ipc_elapsed(action),
+        'exec_ipc_active': get_executed_ipc_active(action),
+        'issued_ipc_active': get_issued_ipc_active(action),
+        'sm_busy': get_sm_busy(action),
+        'issue_slots_busy': get_issue_slots_busy(action)
+    }
+    cli_views.print_compute_workload(action.name(), compute_metrics)
 
 
 ################################################
@@ -165,8 +157,8 @@ def main():
 
     irange = context.range_by_idx(0)
     action = irange.action_by_idx(0)
-    # show_SpeedOfLight(action)
-    # show_compute_workload_analysis(action)
+    show_SpeedOfLight(action)
+    show_compute_workload_analysis(action)
 
 if __name__ == '__main__':
     main()
