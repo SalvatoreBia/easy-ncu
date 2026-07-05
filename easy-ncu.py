@@ -2,6 +2,7 @@ import sys
 import os
 import configparser
 import cli_views
+import cli_repl
 
 
 debug = True
@@ -437,11 +438,9 @@ def main():
 
     irange = context.range_by_idx(0)
     summary = get_range_metrics_summary(irange, start=0, count=54)
-    show_SpeedOfLight_range(summary)
-    show_ComputeWorkloadAnalysis_range(summary)
-    show_WarpStateStatistics_range(summary)
-    show_Occupancy_range(summary)
-    print(summary['roofline'])
+    
+    shell = cli_repl.EasyNcuShell(irange, summary)
+    shell.cmdloop()
 
 
 if __name__ == '__main__':
