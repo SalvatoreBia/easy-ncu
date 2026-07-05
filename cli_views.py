@@ -30,6 +30,7 @@ def _fmt_val(metric_dict, target_unit=None):
         
     return str(val)
 
+
 def print_speed_of_light(kernel_name, data):
     t_left = Table(box=None, show_header=False, expand=True)
     t_left.add_column('Metric',  justify='left', style='magenta')
@@ -52,7 +53,7 @@ def print_speed_of_light(kernel_name, data):
     t_right.add_row(f'{data['dram_freq']['name']} [Ghz]', _fmt_val(data['dram_freq'], '[Ghz]'))
 
     outer_table = Table(
-        title=f'\n[bold]SECTION: SPEED OF LIGHT (SoL)[/bold] | [dim]Kernel: {kernel_name}[/dim]',
+        title=f'\n[bold]SECTION: Speed of Light (SoL)[/bold] | [dim]Kernel: {kernel_name}[/dim]',
         box=ROUNDED, 
         show_header=False,
         title_justify='left'
@@ -61,7 +62,6 @@ def print_speed_of_light(kernel_name, data):
     outer_table.add_column(width=50)
     outer_table.add_column(width=50)
     outer_table.add_row(t_left, t_right)
-
     console.print(outer_table)
 
 
@@ -78,10 +78,10 @@ def print_compute_workload(kernel_name, data):
     t_right.add_column('Value', justify='right', style='white')
     t_right.add_row(escape(f"{data['sm_busy']['name']} [%]"), f"{_fmt_val(data['sm_busy'])}")
     t_right.add_row(escape(f"{data['issue_slots_busy']['name']} [%]"), f"{_fmt_val(data['issue_slots_busy'])}")
-    t_right.add_row("", "")
+    t_right.add_row('', '')
 
     outer_table = Table(
-        title=f'\n[bold]SECTION: COMPUTE WORKLOAD ANALYSIS[/bold] | [dim]Kernel: {kernel_name}[/dim]',
+        title=f'\n[bold]SECTION: Compute Workload Analysis[/bold] | [dim]Kernel: {kernel_name}[/dim]',
         box=ROUNDED,
         show_header=False,
         title_justify='left'
@@ -89,5 +89,28 @@ def print_compute_workload(kernel_name, data):
     outer_table.add_column(width=50)
     outer_table.add_column(width=50)
     outer_table.add_row(t_left, t_right)
+    console.print(outer_table)
 
+def print_warp_state(kernel_name, data):
+    t_left = Table(box=None, show_header=False, expand=True)
+    t_left.add_column('Metric', justify='left', style='magenta')
+    t_left.add_column('Value', justify='right', style='white')
+    t_left.add_row(escape(f"{data['cycles_x_issued']['name']} [cycle]"), f"{_fmt_val(data['cycles_x_issued'])}")
+    t_left.add_row(escape(f"{data['cycles_x_exec']['name']} [cycle]"), f"{_fmt_val(data['cycles_x_exec'])}")
+
+    t_right = Table(box=None, show_header=False, expand=True)
+    t_right.add_column('Metric', justify='left', style='magenta')
+    t_right.add_column('Value', justify='right', style='white')
+    t_right.add_row(f"{data['active_threads']['name']}", f"{_fmt_val(data['active_threads'])}")
+    t_right.add_row(f"{data['not_predicated']['name']}", f"{_fmt_val(data['not_predicated'])}")
+
+    outer_table = Table(
+        title=f'\n[bold]SECTION: Warp State Statistics[/bold] | [dim]Kernel: {kernel_name}[/dim]',
+        box=ROUNDED,
+        show_header=False,
+        title_justify='left'
+    )
+    outer_table.add_column(width=55)
+    outer_table.add_column(width=55)
+    outer_table.add_row(t_left, t_right)
     console.print(outer_table)

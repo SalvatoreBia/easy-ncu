@@ -44,15 +44,21 @@ except ImportError as e:
     sys.exit(1)
 
 
-def empty_metric():
-    return { 'value': None, 'unit': None }
-
+def empty_metric(readable_name):
+    return { 'name': readable_name, 'value': None, 'unit': None }
 
 def get_metric(action, readable_name, metric_name):
     if metric_name in action.metric_names():
         metric = action.metric_by_name(metric_name)
         return { 'name': readable_name, 'value': metric.value(), 'unit': metric.unit() }
-    return empty_metric()
+    return empty_metric(readable_name)
+
+def get_metric_fallback(action, readable_name, metric_names):
+    for name in metric_names:
+        if name in action.metric_names():
+            metric = action.metric_by_name(name)
+            return { 'name': readable_name, 'value': metric.value(), 'unit': metric.unit() }
+    return empty_metric(readable_name)
 
 ################################################
 #
@@ -126,7 +132,7 @@ def get_sm_busy(action):
 def get_issue_slots_busy(action):
     return get_metric(action, 'Issue slots busy', 'sm__inst_issued.avg.pct_of_peak_sustained_active')
 
-def show_compute_workload_analysis(action):
+def show_ComputeWorkloadAnalysis(action):
     compute_metrics = {
         'exec_ipc_elapsed': get_executed_ipc_elapsed(action),
         'exec_ipc_active': get_executed_ipc_active(action),
@@ -136,6 +142,38 @@ def show_compute_workload_analysis(action):
     }
     cli_views.print_compute_workload(action.name(), compute_metrics)
 
+################################################
+#
+#       WARP STATE STATISTICS
+#
+################################################
+
+def get_warp_cycles_x_issued_inst(action):
+    return get_metric(action, 'Warp cycles per issued instruction', 'smsp__average_warp_latency_per_inst_issued.ratio')
+
+def get_warp_cycles_x_exec_inst(action):
+    return get_metric(action, 'Warp cycles per executed instruction', 'smsp__average_warps_active_per_inst_executed.ratio')
+
+def get_active_threads_x_warp(action):
+    return get_metric_fallback(action, 'Avg. active threads per warp', [
+        'smsp__thread_inst_executed_per_inst_executed.ratio',
+        'smsp__average_thread_inst_executed_per_inst_executed'
+    ])
+
+def get_not_predicated_off_threads_x_warp(action):
+    return get_metric_fallback(action, 'Avg. not predicated off threads per warp', [ 
+        'smsp__thread_inst_executed_pred_on_per_inst_executed.ratio',
+        'smsp__average_thread_inst_executed_pred_on_per_inst_executed'
+    ])
+
+def show_WarpStateStatistics(action):
+    warpstate_metrics = {
+        'cycles_x_issued': get_warp_cycles_x_issued_inst(action),
+        'cycles_x_exec': get_warp_cycles_x_exec_inst(action),
+        'active_threads': get_active_threads_x_warp(action),
+        'not_predicated': get_not_predicated_off_threads_x_warp(action)
+    }
+    cli_views.print_warp_state(action.name(), warpstate_metrics)
 
 ################################################
 
@@ -158,7 +196,8 @@ def main():
     irange = context.range_by_idx(0)
     action = irange.action_by_idx(0)
     show_SpeedOfLight(action)
-    show_compute_workload_analysis(action)
+    show_ComputeWorkloadAnalysis(action)
+    show_WarpStateStatistics(action)
 
 if __name__ == '__main__':
     main()
