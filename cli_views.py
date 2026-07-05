@@ -30,7 +30,6 @@ def _fmt_val(metric_dict, target_unit=None):
         
     return str(val)
 
-
 def print_speed_of_light(kernel_name, data):
     t_left = Table(box=None, show_header=False, expand=True)
     t_left.add_column('Metric',  justify='left', style='magenta')
@@ -63,7 +62,6 @@ def print_speed_of_light(kernel_name, data):
     outer_table.add_column(width=50)
     outer_table.add_row(t_left, t_right)
     console.print(outer_table)
-
 
 def print_compute_workload(kernel_name, data):
     t_left = Table(box=None, show_header=False, expand=True)
@@ -106,6 +104,34 @@ def print_warp_state(kernel_name, data):
 
     outer_table = Table(
         title=f'\n[bold]SECTION: Warp State Statistics[/bold] | [dim]Kernel: {kernel_name}[/dim]',
+        box=ROUNDED,
+        show_header=False,
+        title_justify='left'
+    )
+    outer_table.add_column(width=55)
+    outer_table.add_column(width=55)
+    outer_table.add_row(t_left, t_right)
+    console.print(outer_table)
+
+def print_occupancy(kernel_name, data):
+    t_left = Table(box=None, show_header=False, expand=True)
+    t_left.add_column('Metric', justify='left', style='magenta')
+    t_left.add_column('Value', justify='right', style='white')
+    t_left.add_row(f"{data['th_occ']['name']} [%]", f"{_fmt_val(data['th_occ'])}")
+    t_left.add_row(escape(f"{data['th_warps']['name']} [warp]"), f"{_fmt_val(data['th_warps'])}")
+    t_left.add_row(f"{data['ach_occ']['name']} [%]", f"{_fmt_val(data['ach_occ'])}")
+    t_left.add_row(escape(f"{data['ach_warps']['name']} [warp]"), f"{_fmt_val(data['ach_warps'])}")
+
+    t_right = Table(box=None, show_header=False, expand=True)
+    t_right.add_column('Metric', justify='left', style='magenta')
+    t_right.add_column('Value', justify='right', style='white')
+    t_right.add_row(escape(f"{data['block_regs']['name']} [block]"), f"{_fmt_val(data['block_regs'])}")
+    t_right.add_row(escape(f"{data['block_shared']['name']} [block]"), f"{_fmt_val(data['block_shared'])}")
+    t_right.add_row(escape(f"{data['block_warps']['name']} [block]"), f"{_fmt_val(data['block_warps'])}")
+    t_right.add_row(escape(f"{data['block_sm']['name']} [block]"), f"{_fmt_val(data['block_sm'])}")
+
+    outer_table = Table(
+        title=f'\n[bold]SECTION: Occupancy[/bold] | [dim]Kernel: {kernel_name}[/dim]',
         box=ROUNDED,
         show_header=False,
         title_justify='left'

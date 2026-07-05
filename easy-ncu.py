@@ -176,6 +176,49 @@ def show_WarpStateStatistics(action):
     cli_views.print_warp_state(action.name(), warpstate_metrics)
 
 ################################################
+#
+#       OCCUPANCY
+#
+################################################
+
+def get_th_occupancy(action):
+    return get_metric(action, 'Theoretical Occupancy', 'sm__maximum_warps_per_active_cycle_pct')
+
+def get_th_active_warps_x_sm(action):
+    return get_metric(action, 'Theoretical active warps per SM', 'sm__maximum_warps_avg_per_active_cycle')
+
+def get_achieved_occupancy(action):
+    return get_metric(action, 'Achieved occupancy', 'sm__warps_active.avg.pct_of_peak_sustained_active')
+
+def get_achieved_warps_x_sm(action):
+    return get_metric(action, 'Achieved active warps per SM', 'sm__warps_active.avg.per_cycle_active')
+
+def get_block_limit_regs(action):
+    return get_metric(action, 'Block limit registers', 'launch__occupancy_limit_registers')
+
+def get_block_limit_shared_mem(action):
+    return get_metric(action, 'Block limit shared shared mem', 'launch__occupancy_limit_shared_mem')
+
+def get_block_limit_warps(action):
+    return get_metric(action, 'Block limit warps', 'launch__occupancy_limit_warps')
+
+def get_block_limit_sm(action):
+    return get_metric(action, 'Block limit SM', 'launch__occupancy_limit_blocks')
+
+def show_Occupancy(action):
+    occupancy_metrics = {
+        'th_occ': get_th_occupancy(action),
+        'th_warps': get_th_active_warps_x_sm(action),
+        'ach_occ': get_achieved_occupancy(action),
+        'ach_warps': get_achieved_warps_x_sm(action),
+        'block_regs': get_block_limit_regs(action),
+        'block_shared': get_block_limit_shared_mem(action),
+        'block_warps': get_block_limit_warps(action),
+        'block_sm': get_block_limit_sm(action)
+    }
+    cli_views.print_occupancy(action.name(), occupancy_metrics)
+
+################################################
 
 def main():
     if len(sys.argv) != 2:
@@ -198,6 +241,7 @@ def main():
     show_SpeedOfLight(action)
     show_ComputeWorkloadAnalysis(action)
     show_WarpStateStatistics(action)
+    show_Occupancy(action)
 
 if __name__ == '__main__':
     main()
