@@ -89,7 +89,7 @@ def get_SoL_dram_throughput(action):
 def get_SoL_dram_frequency(action):
     return get_metric(action, 'DRAM frequency', 'dram__cycles_elapsed.avg.per_second')
 
-def show_SoL(action):
+def show_SpeedOfLight(action):
     duration = get_SoL_kernel_duration(action)
     sm_sol = get_SoL_compute_sm(action)
     mem_sol = get_SoL_memory_throughput(action)
@@ -111,6 +111,39 @@ def show_SoL(action):
     print(sm_active)
     print(dram_freq)
 
+################################################
+#
+#       COMPUTE WORKLOAD ANALYSIS
+#
+################################################
+
+def get_executed_ipc_elapsed(action):
+    return get_metric(action, 'Executed Ipc elapsed', 'sm__inst_executed.avg.per_cycle_elapsed')
+
+def get_executed_ipc_active(action):
+    return get_metric(action, 'Executed Ipc active', 'sm__inst_executed.avg.per_cycle_active')
+
+def get_issued_ipc_active(action):
+    return get_metric(action, 'Issued Ipc active', 'sm__inst_issued.avg.per_cycle_active')
+
+def get_sm_busy(action):
+    return get_metric(action, 'SM busy', 'sm__instruction_throughput.avg.pct_of_peak_sustained_active')
+
+def get_issue_slots_busy(action):
+    return get_metric(action, 'Issue slots busy', 'sm__inst_issued.avg.pct_of_peak_sustained_active')
+
+def show_compute_workload_analysis(action):
+    exec_ipc_elapsed = get_executed_ipc_elapsed(action)
+    exec_ipc_active = get_executed_ipc_active(action)
+    issued_ipc_active = get_issued_ipc_active(action)
+    sm_busy = get_sm_busy(action)
+    issue_slots_busy = get_issue_slots_busy(action)
+    print(exec_ipc_elapsed)
+    print(exec_ipc_active)
+    print(issued_ipc_active)
+    print(sm_busy)
+    print(issue_slots_busy)
+
 
 ################################################
 
@@ -130,10 +163,10 @@ def main():
     if debug:
         print('[DEBUG] ncu report loaded')
 
-    # irange = context.range_by_idx(0)
-    # action = irange.action_by_idx(0)
-    # show_SoL(action)
-
+    irange = context.range_by_idx(0)
+    action = irange.action_by_idx(0)
+    # show_SpeedOfLight(action)
+    # show_compute_workload_analysis(action)
 
 if __name__ == '__main__':
     main()
