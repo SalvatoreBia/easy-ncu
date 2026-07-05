@@ -219,6 +219,41 @@ def show_Occupancy(action):
     cli_views.print_occupancy(action.name(), occupancy_metrics)
 
 ################################################
+#
+#       ROOFLINE METRICS
+#
+################################################
+
+#
+# this calculates Arithmetic Intensity and FLOPs
+# in order to plot the roofline.
+# The data needed for calculations is taken
+# from the SpeedOfLight_RooflineChart.section file inside
+# the ncu folder
+#
+def get_roofline_dram_coords_fp32(action):
+    fadd_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fadd_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
+    fmul_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fmul_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
+    ffma_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_ffma_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
+
+    sm_freq_metric = get_metric(action, '', 'smsp__cycles_elapsed.avg.per_second')
+    sm_freq_hz = float(sm_freq_metric.get('value', 0) or 0)
+
+    flops_s_fp32 = (fadd_pc + fmul_pc + 2 * ffma_pc) * sm_freq_hz
+
+    dram_bw_metric = get_metric(action, '', 'dram__bytes.sum.per_second')
+    dram_bw_bytes_s = float(dram_bw_metric.get('value', 0) or 0)
+    if dram_bw_metric.get('unit') == 'Gbyte/s':
+        dram_bw_bytes_s *= 1_000_000_000.0
+
+    arithmetic_intensity_fp32 = flops_s_fp32 / dram_bw_bytes_s if dram_bw_bytes_s > 0 else 0
+
+    return {
+        'flop_s': round(flops_s_fp32, 2),
+        'ai': round(arithmetic_intensity_fp32, 2)
+    }
+
+################################################
 
 def main():
     if len(sys.argv) != 2:
@@ -242,6 +277,9 @@ def main():
     show_ComputeWorkloadAnalysis(action)
     show_WarpStateStatistics(action)
     show_Occupancy(action)
+    
+    rf = get_roofline_dram_coords_fp32(action)
+    print(rf)
 
 if __name__ == '__main__':
     main()
