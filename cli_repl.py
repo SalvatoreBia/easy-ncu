@@ -26,7 +26,35 @@ class EasyNcuShell(cmd.Cmd):
 
         self.avg_on = False
         self.summary = None
+        self.do_fetch(None)
         self._update_prompt()
+
+    def do_fetch(self, arg):
+        """Cool logo"""
+        kernel_name = self.action.name() if self.naction > 0 else "N/A"
+        if len(kernel_name) > 30:
+            kernel_name = kernel_name[:27] + "..."
+
+        sm_freq_m = self.main_mod.get_metric(self.action, '', 'gpc__cycles_elapsed.avg.per_second')
+        clk_val = sm_freq_m.get('value', 0) or 0
+        clk_str = f"{clk_val / 1e6:.1f} MHz" if clk_val > 0 else "Unknown"
+
+        logo = [
+            r' _______   ________  ________       ___    ___      ________   ________  ___  ___',
+            r'|\  ___ \ |\   __  \|\   ____\     |\  \  /  /|    |\   ___  \|\   ____\|\  \|\  \ ',
+            r'\ \   __/|\ \  \|\  \ \  \___|_    \ \  \/  / /    \ \  \\ \  \ \  \___|\ \  \\\  \ ',
+            r' \ \  \_|/_\ \   __  \ \_____  \    \ \    / /      \ \  \\ \  \ \  \    \ \  \\\  \ ',
+            r'  \ \  \_|\ \ \  \ \  \|____|\  \    \/  /  /        \ \  \\ \  \ \  \____\ \  \\\  \ ',
+            r'   \ \_______\ \__\ \__\____\_\  \ __/  / /           \ \__\\ \__\ \_______\ \_______\ ',
+            r'    \|_______|\|__|\|__|\_________\\___/ /             \|__| \|__|\|_______|\|_______|',
+            r'                       \|_________\|___|/'
+        ]
+
+        print()
+        for i in range(len(logo)):
+            l_side = logo[i] if i < len(logo) else " " * 86
+            print(f"  \033[1;32m{l_side}\033[0m")
+        print()
 
     def _update_prompt(self):
         if self.avg_on:

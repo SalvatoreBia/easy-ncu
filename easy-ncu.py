@@ -5,7 +5,7 @@ import cli_views
 import cli_repl
 
 
-debug = True
+debug = False
 ncu_path = None
 
 
