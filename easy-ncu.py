@@ -436,10 +436,7 @@ def main():
     if debug:
         print('[DEBUG] ncu report loaded')
 
-    irange = context.range_by_idx(0)
-    summary = get_range_metrics_summary(irange, start=0, count=54)
-    
-    shell = cli_repl.EasyNcuShell(irange, summary)
+    shell = cli_repl.EasyNcuShell(context)
     shell.cmdloop()
 
 
