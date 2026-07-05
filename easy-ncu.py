@@ -60,6 +60,158 @@ def get_metric_fallback(action, readable_name, metric_names):
             return { 'name': readable_name, 'value': metric.value(), 'unit': metric.unit() }
     return empty_metric(readable_name)
 
+def get_metric_avg(irange, readable_name, metric_name, start, count):
+    total_val = 0.0
+    valid_count = 0
+    unit = None
+
+    for i in range(start, start + count):
+        if i >= irange.num_actions():
+            break
+        action = irange.action_by_idx(i)
+        metric = get_metric(action, readable_name, metric_name)
+        if metric['value'] is not None and isinstance(metric['value'], (int, float)):
+            total_val += metric['value']
+            valid_count += 1
+            if not unit:
+                unit = metric['unit']
+
+    avg_val = total_val / valid_count if valid_count > 0 else 0.0
+    return { 'name': f"Avg. {readable_name}", 'value': round(avg_val, 2), 'unit': unit }
+
+def get_metric_fallback_avg(irange, readable_name, metric_names, start, count):
+    target_name = None
+    if irange.num_actions() > start:
+        action = irange.action_by_idx(start)
+        for name in metric_names:
+            if name in action.metric_names():
+                target_name = name
+                break
+
+    if not target_name:
+        return empty_metric(readable_name)
+    return get_metric_avg(irange, readable_name, target_name, start, count)
+
+def get_range_metrics_summary(irange, start, count):
+    metric_map = {
+        'duration': 'gpu__time_duration.sum',
+        'sm_sol': 'sm__throughput.avg.pct_of_peak_sustained_elapsed',
+        'mem_sol': 'gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed',
+        'cycles': 'gpc__cycles_elapsed.max',
+        'l1_sol': 'l1tex__throughput.avg.pct_of_peak_sustained_active',
+        'sm_active': 'sm__cycles_active.avg',
+        'l2_sol': 'lts__throughput.avg.pct_of_peak_sustained_elapsed',
+        'sm_freq': 'gpc__cycles_elapsed.avg.per_second',
+        'dram_sol': 'gpu__dram_throughput.avg.pct_of_peak_sustained_elapsed',
+        'dram_freq': 'dram__cycles_elapsed.avg.per_second',
+        'exec_ipc_elapsed': 'sm__inst_executed.avg.per_cycle_elapsed',
+        'exec_ipc_active': 'sm__inst_executed.avg.per_cycle_active',
+        'issued_ipc_active': 'sm__inst_issued.avg.per_cycle_active',
+        'sm_busy': 'sm__instruction_throughput.avg.pct_of_peak_sustained_active',
+        'issue_slots_busy': 'sm__inst_issued.avg.pct_of_peak_sustained_active',
+        'cycles_x_issued': 'smsp__average_warp_latency_per_inst_issued.ratio',
+        'cycles_x_exec': 'smsp__average_warps_active_per_inst_executed.ratio',
+        'th_occ': 'sm__maximum_warps_per_active_cycle_pct',
+        'th_warps': 'sm__maximum_warps_avg_per_active_cycle',
+        'ach_occ': 'sm__warps_active.avg.pct_of_peak_sustained_active',
+        'ach_warps': 'sm__warps_active.avg.per_cycle_active',
+        'block_regs': 'launch__occupancy_limit_registers',
+        'block_shared': 'launch__occupancy_limit_shared_mem',
+        'block_warps': 'launch__occupancy_limit_warps',
+        'block_sm': 'launch__occupancy_limit_blocks',
+        'dram_bw': 'dram__bytes.sum.per_second',
+        'l2_sectors': 'lts__t_sectors.sum',
+        'l1_sectors_ld': 'l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum',
+        'l1_sectors_st': 'l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum'
+    }
+    
+    fallback_maps = {
+        'active_threads': ['smsp__thread_inst_executed_per_inst_executed.ratio', 'smsp__average_thread_inst_executed_per_inst_executed'],
+        'not_predicated': ['smsp__thread_inst_executed_pred_on_per_inst_executed.ratio', 'smsp__average_thread_inst_executed_pred_on_per_inst_executed']
+    }
+
+    sums = {k: 0.0 for k in metric_map.keys()}
+    sums.update({k: 0.0 for k in fallback_maps.keys()})
+    roofline_sums = {'dram_flops': 0.0, 'dram_ai': 0.0, 'l2_flops': 0.0, 'l2_ai': 0.0, 'l1_flops': 0.0, 'l1_ai': 0.0}
+    
+    valid_count = 0
+    units = {}
+    kernel_name = ''
+    for i in range(start, start + count):
+        if i >= irange.num_actions():
+            break
+        action = irange.action_by_idx(i)
+        valid_count += 1
+        if i == start:
+            kernel_name = action.name()
+
+        current_vals = {}
+        for key, m_name in metric_map.items():
+            m = get_metric(action, '', m_name)
+            val = m['value'] if (m['value'] is not None and isinstance(m['value'], (int, float))) else 0.0
+            sums[key] += val
+            current_vals[key] = val
+            if key not in units and m['unit']:
+                units[key] = m['unit']
+
+        for key, f_names in fallback_maps.items():
+            m = get_metric_fallback(action, '', f_names)
+            val = m['value'] if (m['value'] is not None and isinstance(m['value'], (int, float))) else 0.0
+            sums[key] += val
+            if key not in units and m['unit']:
+                units[key] = m['unit']
+
+        fadd_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fadd_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
+        fmul_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fmul_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
+        ffma_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_ffma_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
+        sm_freq_hz = current_vals['sm_freq']
+
+        flops_s = (fadd_pc + fmul_pc + 2 * ffma_pc) * sm_freq_hz
+        roofline_sums['dram_flops'] += flops_s
+
+        dram_bw_bytes = current_vals['dram_bw'] * (1e9 if units.get('dram_bw') == 'Gbyte/s' else 1.0)
+        roofline_sums['dram_ai'] += (flops_s / dram_bw_bytes if dram_bw_bytes > 0 else 0.0)
+    if valid_count == 0:
+        return None
+
+    averages = {k: round(v / valid_count, 2) for k, v in sums.items()}
+    roof_avgs = {k: round(v / valid_count, 2) for k, v in roofline_sums.items()}
+
+    def fmt(readable, key):
+        return {'name': f"Avg. {readable}", 'value': averages[key], 'unit': units.get(key)}
+
+    return {
+        'kernel_name': kernel_name,
+        'sol': {
+            'duration': fmt('Duration', 'duration'), 'sm_sol': fmt('Compute (SM) throughput', 'sm_sol'),
+            'mem_sol': fmt('Memory throughput', 'mem_sol'), 'cycles': fmt('Elapsed cycles', 'cycles'),
+            'l1_sol': fmt('L1/TEX cache throughput', 'l1_sol'), 'l2_sol': fmt('L2 cache throughput', 'l2_sol'),
+            'dram_sol': fmt('DRAM throughput', 'dram_sol'), 'sm_freq': fmt('SM frequency', 'sm_freq'),
+            'sm_active': fmt('SM active cycles', 'sm_active'), 'dram_freq': fmt('DRAM frequency', 'dram_freq')
+        },
+        'compute': {
+            'exec_ipc_elapsed': fmt('Executed Ipc elapsed', 'exec_ipc_elapsed'), 'exec_ipc_active': fmt('Executed Ipc active', 'exec_ipc_active'),
+            'issued_ipc_active': fmt('Issued Ipc active', 'issued_ipc_active'), 'sm_busy': fmt('SM busy', 'sm_busy'),
+            'issue_slots_busy': fmt('Issue slots busy', 'issue_slots_busy')
+        },
+        'warp': {
+            'cycles_x_issued': fmt('Warp cycles per issued instruction', 'cycles_x_issued'),
+            'cycles_x_exec': fmt('Warp cycles per executed instruction', 'cycles_x_exec'),
+            'active_threads': fmt('Avg. active threads per warp', 'active_threads'),
+            'not_predicated': fmt('Avg. not predicated off threads per warp', 'not_predicated')
+        },
+        'occupancy': {
+            'th_occ': fmt('Theoretical Occupancy', 'th_occ'), 'th_warps': fmt('Theoretical active warps per SM', 'th_warps'),
+            'ach_occ': fmt('Achieved occupancy', 'ach_occ'), 'ach_warps': fmt('Achieved active warps per SM', 'ach_warps'),
+            'block_regs': fmt('Block limit registers', 'block_regs'), 'block_shared': fmt('Block limit shared shared mem', 'block_shared'),
+            'block_warps': fmt('Block limit warps', 'block_warps'), 'block_sm': fmt('Block limit SM', 'block_sm')
+        },
+        'roofline': {
+            'flop_s': roof_avgs['dram_flops'],
+            'ai_dram': roof_avgs['dram_ai'],
+        }
+    }
+
 ################################################
 #
 #       SPEED OF LIGHT
@@ -111,6 +263,9 @@ def show_SpeedOfLight(action):
     }
     cli_views.print_speed_of_light(action.name(), sol_metrics)
 
+def show_SpeedOfLight_range(summary_data):
+    cli_views.print_speed_of_light(summary_data['kernel_name'], summary_data['sol'])
+
 ################################################
 #
 #       COMPUTE WORKLOAD ANALYSIS
@@ -141,6 +296,9 @@ def show_ComputeWorkloadAnalysis(action):
         'issue_slots_busy': get_issue_slots_busy(action)
     }
     cli_views.print_compute_workload(action.name(), compute_metrics)
+
+def show_ComputeWorkloadAnalysis_range(summary_data):
+    cli_views.print_compute_workload(summary_data['kernel_name'], summary_data['compute'])
 
 ################################################
 #
@@ -174,6 +332,9 @@ def show_WarpStateStatistics(action):
         'not_predicated': get_not_predicated_off_threads_x_warp(action)
     }
     cli_views.print_warp_state(action.name(), warpstate_metrics)
+
+def show_WarpStateStatistics_range(summary_data):
+    cli_views.print_warp_state(summary_data['kernel_name'], summary_data['warp'])
 
 ################################################
 #
@@ -217,6 +378,9 @@ def show_Occupancy(action):
         'block_sm': get_block_limit_sm(action)
     }
     cli_views.print_occupancy(action.name(), occupancy_metrics)
+
+def show_Occupancy_range(summary_data):
+    cli_views.print_occupancy(summary_data['kernel_name'], summary_data['occupancy'])
 
 ################################################
 #
@@ -272,14 +436,13 @@ def main():
         print('[DEBUG] ncu report loaded')
 
     irange = context.range_by_idx(0)
-    action = irange.action_by_idx(0)
-    show_SpeedOfLight(action)
-    show_ComputeWorkloadAnalysis(action)
-    show_WarpStateStatistics(action)
-    show_Occupancy(action)
-    
-    rf = get_roofline_dram_coords_fp32(action)
-    print(rf)
+    summary = get_range_metrics_summary(irange, start=0, count=54)
+    show_SpeedOfLight_range(summary)
+    show_ComputeWorkloadAnalysis_range(summary)
+    show_WarpStateStatistics_range(summary)
+    show_Occupancy_range(summary)
+    print(summary['roofline'])
+
 
 if __name__ == '__main__':
     main()
