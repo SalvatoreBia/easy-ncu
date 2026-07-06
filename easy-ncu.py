@@ -4,15 +4,13 @@ import configparser
 import cli_views
 import cli_repl
 import shutil
-import ncu_report
+
 
 debug = True
 ncu_path = None
 
 def locate_ncu():
     global ncu_path
-
-    # Try locating via shutil.which and resolve symlinks
     path = shutil.which('ncu')
     if path:
         real_path = os.path.realpath(path)
