@@ -14,6 +14,8 @@ The code allows for collecting the following sections:
 - Arithmetic Intensity
 - FLOP/s
 
+An example `.ncu-rep` file is provided in the resources folder.
+
 ---
 
 **NOTE**: The metrics name are taken from the Ampere architecture, so if you have GPUs with different architecture it may not find the metrics. If so, you can change yourself the metrics name and the code should work. Support for different architectures may be added later.
