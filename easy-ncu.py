@@ -4,27 +4,29 @@ import configparser
 import cli_views
 import cli_repl
 import shutil
+import pathlib
 
 
 debug = True
 ncu_path = None
 
-def locate_ncu():
+def try_import():
     global ncu_path
-    path = shutil.which('ncu')
-    if path:
-        real_path = os.path.realpath(path)
-        base_dir = os.path.dirname(real_path)
-        current_dir = base_dir
-        for _ in range(4):
-            if not current_dir or current_dir == '/':
-                break
-            pypath = os.path.join(current_dir, 'extras', 'python')
-            if os.path.exists(pypath) and os.path.isdir(pypath):
-                ncu_path = pypath
-                if debug: print(f'[DEBUG] Nsight Compute path found via executable at {pypath}')
-                return
-            current_dir = os.path.dirname(current_dir)
+    try:
+        import ncu_report
+        ncu_path = os.path.dirname(ncu_report.__file__)
+        if debug: print(f'[DEBUG] ncu_report module found at {ncu_path}')
+        return True
+    except ImportError:
+        print(f'[DEBUG] Can\'t natively import ncu_report module. Fallback to automatic resolving...')
+        return False
+
+def locate_ncu_pymodule(start='/'):
+    if debug: print(f'[DEBUG] Searching for ncu_report module in {start} folder...')
+    res = next(pathlib.Path(start).rglob('ncu_report.py'), None)
+    if res:
+        return str(res.parent)
+    return None
 
 def load_configs():
     global ncu_path
@@ -43,14 +45,10 @@ def load_configs():
     if debug:
         print(f'[DEBUG] ncu_path set to: {ncu_path}')
 
-    if ncu_path and os.path.exists(ncu_path):
-        if ncu_path not in sys.path:
-            sys.path.append(ncu_path)
-        os.environ['LD_LIBRARY_PATH'] = ncu_path + ':' + os.environ.get('LD_LIBRARY_PATH', '')
-        if debug:
-            print('[DEBUG] Python environment and LD_LIBRARY_PATH updated')
 
-locate_ncu()
+if not try_import():
+    ncu_path = locate_ncu_pymodule(start='/usr/')
+
 if not ncu_path:
     print('Nsight Compute directory not found. Fallback to config file...')
 load_configs()
@@ -58,12 +56,22 @@ if not ncu_path or not os.path.exists(ncu_path):
     print('[ERROR] ncu_path is incorrect. Add or correct the entry \'NcuPythonPath\' in config.cfg')
     sys.exit(1)
 
+
+if ncu_path not in sys.path:
+    sys.path.append(ncu_path)
+
+os.environ['LD_LIBRARY_PATH'] = ncu_path + ':' + os.environ.get('LD_LIBRARY_PATH', '')
+if debug:
+    print(f'[DEBUG] Python environment and LD_LIBRARY_PATH updated with: {ncu_path}')
+    
 try:
     import ncu_report
-except ImportError as e:
-    print('[ERROR] Couldn\'t import ncu_report library. Check for \'NcuPythonPath\' correctness in config.cfg')
+    if debug: print('[DEBUG] ncu_report successfully loaded after environment setup!')
+except ImportError:
+    print('[ERROR] Environment updated but module import still failed.')
     sys.exit(1)
 
+##############################################
 
 def empty_metric(readable_name):
     return { 'name': readable_name, 'value': None, 'unit': None }
