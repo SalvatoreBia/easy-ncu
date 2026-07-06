@@ -3,11 +3,23 @@ import os
 import configparser
 import cli_views
 import cli_repl
+import shutil
 
 
-debug = False
+debug = True
 ncu_path = None
 
+def locate_ncu():
+    global ncu_path
+    path  = shutil.which('ncu')
+    if path:
+        base_dir = os.path.dirname(path)
+        pypath   = os.path.join(base_dir, 'extras', 'python')
+        if os.path.exists(pypath):
+            ncu_path = pypath
+            if debug: print(f'[DEBUG] Nsight Compute path found at {base_dir}.')
+            else:
+                if debug: print(f'[DEBUG] Couldn\'t locate ncu_report module path at {base_dir}.')
 
 def load_configs():
     global ncu_path
@@ -17,7 +29,8 @@ def load_configs():
         return    
     try:
         config.read('config.cfg')
-        ncu_path = config.get('DEFAULT', 'NcuPythonPath', fallback=None)
+        if not ncu_path:
+            ncu_path = config.get('DEFAULT', 'NcuPythonPath', fallback=None)
     except Exception as e:
         print('[ERROR] Error reading config.cfg')
         return
@@ -32,7 +45,9 @@ def load_configs():
         if debug:
             print('[DEBUG] Python environment and LD_LIBRARY_PATH updated')
 
-
+locate_ncu()
+if not ncu_path:
+    print('Nsight Compute directory not found. Fallback to config file...')
 load_configs()
 if not ncu_path or not os.path.exists(ncu_path):
     print('[ERROR] ncu_path is incorrect. Add or correct the entry \'NcuPythonPath\' in config.cfg')
