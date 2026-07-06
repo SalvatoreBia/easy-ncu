@@ -4,22 +4,29 @@ import configparser
 import cli_views
 import cli_repl
 import shutil
-
+import ncu_report
 
 debug = True
 ncu_path = None
 
 def locate_ncu():
     global ncu_path
-    path  = shutil.which('ncu')
+
+    # Try locating via shutil.which and resolve symlinks
+    path = shutil.which('ncu')
     if path:
-        base_dir = os.path.dirname(path)
-        pypath   = os.path.join(base_dir, 'extras', 'python')
-        if os.path.exists(pypath):
-            ncu_path = pypath
-            if debug: print(f'[DEBUG] Nsight Compute path found at {base_dir}.')
-            else:
-                if debug: print(f'[DEBUG] Couldn\'t locate ncu_report module path at {base_dir}.')
+        real_path = os.path.realpath(path)
+        base_dir = os.path.dirname(real_path)
+        current_dir = base_dir
+        for _ in range(4):
+            if not current_dir or current_dir == '/':
+                break
+            pypath = os.path.join(current_dir, 'extras', 'python')
+            if os.path.exists(pypath) and os.path.isdir(pypath):
+                ncu_path = pypath
+                if debug: print(f'[DEBUG] Nsight Compute path found via executable at {pypath}')
+                return
+            current_dir = os.path.dirname(current_dir)
 
 def load_configs():
     global ncu_path
