@@ -424,7 +424,7 @@ def show_Occupancy_range(summary_data):
 # from the SpeedOfLight_RooflineChart.section file inside
 # the ncu folder
 #
-def get_roofline_dram_coords_fp32(action):
+def get_roofline_coords_fp32(action, full=False):
     fadd_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fadd_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
     fmul_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fmul_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
     ffma_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_ffma_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
@@ -442,31 +442,38 @@ def get_roofline_dram_coords_fp32(action):
     arithmetic_intensity_fp32 = flops_s_fp32 / dram_bw_bytes_s if dram_bw_bytes_s > 0 else 0
 
     return {
-        'flop_s': round(flops_s_fp32, 2),
+        'flop_s': flops_s_fp32,
         'ai': round(arithmetic_intensity_fp32, 2)
     }
 
 ################################################
 
+def load_report_wrapper(report):
+    return ncu_report.load_report(report)
+
 def main():
-    if len(sys.argv) != 2:
-        print('[ERROR] Provide a valid .ncu-rep file')
+    if len(sys.argv) > 2:
+        print('[ERROR] Only one report file can be selected.')
         sys.exit(1)
 
-    report = sys.argv[1]
-    if not os.path.exists(report) or not report.endswith('.ncu-rep'):
-        print(f'[ERROR] Report not found or invalid extension at: {report}')
-        sys.exit(1)
-    if debug:
-        print(f'[DEBUG] Input report found at {report}')
-
-    context = ncu_report.load_report(report)
-    if debug:
-        print('[DEBUG] ncu report loaded')
+    context = None
+    if len(sys.argv) == 2:
+        try:
+            report = sys.argv[1]
+            if not os.path.exists(report) or not report.endswith('.ncu-rep'):
+                print(f'[ERROR] Report not found or invalid extension at: {report}')
+                sys.exit(1)
+            if debug:
+                print(f'[DEBUG] Input report found at {report}')
+            context = ncu_report.load_report(report)
+            if debug:
+                print('[DEBUG] ncu report loaded')
+        except Exception as e:
+            print(f'[ERROR] Failed to load report: {e}')
+            sys.exit(1)
 
     shell = cli_repl.EasyNcuShell(context)
     shell.cmdloop()
-
 
 if __name__ == '__main__':
     main()
