@@ -1,7 +1,8 @@
 import cmd
 import os
+import cli_views
 import roofline
-
+import section
 
 class EasyNcuShell(cmd.Cmd):
     intro = 'Welcome to easy-ncu interactive shell. Check for the commands with "help".\n'
@@ -24,30 +25,20 @@ class EasyNcuShell(cmd.Cmd):
         self.start = 0
         self.count = 0
         self.avg_on = False
-        self.summary = None
+
+        self.sections = None
 
         if self.context:
             self._context_init()
-        
+
         self.do_fetch(None)
 
     def do_fetch(self, arg):
         """Cool logo"""
-        kernel_name = self.action.name() if (self.context and self.naction > 0 and self.action) else "N/A"
-        if len(kernel_name) > 30:
-            kernel_name = kernel_name[:27] + "..."
-
-        clk_str = "Unknown"
-        if self.context and self.action:
-            sm_freq_m = self.main_mod.get_metric(self.action, '', 'gpc__cycles_elapsed.avg.per_second')
-            clk_val = sm_freq_m.get('value', 0) or 0
-            if clk_val > 0:
-                clk_str = f"{clk_val / 1e6:.1f} MHz"
-
         logo = [
-            r' _______  ________  ________       ___    ___      ________  ________  ___  ___',
+            r' _______   ________  ________       ___    ___      ________   ________  ___  ___',
             r'|\  ___ \ |\   __  \|\   ____\     |\  \  /  /|    |\   ___  \|\   ____\|\  \|\  \ ',
-            r'\ \  ___/|\ \  \|\  \ \  \___|_    \ \  \/  / /    \ \  \\ \  \ \  \___|\ \  \\\  \ ',
+            r'\ \   __/|\ \  \|\  \ \  \___|_    \ \  \/  / /    \ \  \\ \  \ \  \___|\ \  \\\  \ ',
             r' \ \  \_|/_\ \   __  \ \_____  \    \ \    / /      \ \  \\ \  \ \  \    \ \  \\\  \ ',
             r'  \ \  \_|\ \ \  \ \  \|____|\  \    \/  /  /        \ \  \\ \  \ \  \____\ \  \\\  \ ',
             r'   \ \_______\ \__\ \__\____\_\  \ __/  / /           \ \__\\ \__\ \_______\ \_______\ ',
@@ -78,25 +69,21 @@ class EasyNcuShell(cmd.Cmd):
         self.count = self.naction
 
         self.avg_on = False
-        self.summary = None
+
+        self.sections = self.main_mod.load_sections(self.action)
+
         self._update_prompt()
 
     def _update_prompt(self):
         if self.context:
             if self.avg_on:
                 end_idx = self.start + self.count - 1
-                mode = f"Summary:{self.start}-{end_idx}"
+                mode = f"Agg:{self.start}-{end_idx}"
             else:
                 mode = f"Kernel {self.action_idx}"
             self.prompt = f'(easy-ncu)[range:{self.range_idx} | {mode}]> '
         else:
             self.prompt = '(easy-ncu)> '
-
-    def _update_summary_if_needed(self):
-        if self.avg_on and self.context:
-            self.summary = self.main_mod.get_range_metrics_summary(self.irange, start=self.start, count=self.count)
-        else:
-            self.summary = None
 
     def do_enable(self, arg):
         """
@@ -123,9 +110,8 @@ class EasyNcuShell(cmd.Cmd):
             
         if not self.avg_on:
             self.avg_on = True
-            self._update_summary_if_needed()
             self._update_prompt()
-            print('Summary aggregation enabled.')
+            print('Aggregation enabled.')
 
     def do_disable(self, arg):
         """
@@ -152,9 +138,8 @@ class EasyNcuShell(cmd.Cmd):
             
         if self.avg_on:
             self.avg_on = False
-            self.summary = None
             self._update_prompt()
-            print('Summary aggregation disabled. Single kernel mode active.')
+            print('Aggregation disabled. Single kernel mode active.')
 
     def do_showflags(self, arg):
         """
@@ -226,7 +211,6 @@ class EasyNcuShell(cmd.Cmd):
             self.start = 0
             self.count = self.naction
             
-            self._update_summary_if_needed()
             self._update_prompt()
             print(f'Switched to range {idx}.')
         except ValueError:
@@ -259,8 +243,7 @@ class EasyNcuShell(cmd.Cmd):
             
             if self.avg_on:
                 self.avg_on = False
-                self.summary = None
-                print('Auto-disabled summary aggregation to inspect the selected kernel.')
+                print('Auto-disabled aggregation to inspect the selected kernel.')
                 
             self._update_prompt()
             print(f'Targeted kernel {idx}: {self.action.name()}')
@@ -309,11 +292,10 @@ class EasyNcuShell(cmd.Cmd):
 
             if not self.avg_on:
                 self.avg_on = True
-                print('Auto-enabled summary aggregation for the selected slice.')
+                print('Auto-enabled aggregation for the selected slice.')
 
-            self._update_summary_if_needed()
             self._update_prompt()
-            print(f'Summary slice updated: evaluating {self.count} kernels starting from index {self.start}.')
+            print(f'Evaluating {self.count} kernels starting from index {self.start}.')
         except ValueError:
             print('Arguments must be valid integers.')
     
@@ -324,10 +306,11 @@ class EasyNcuShell(cmd.Cmd):
         if not self.context:
             print('No report loaded.')
             return
+        section_name = 'GPU Speed Of Light Throughput'
         if self.avg_on:
-            self.main_mod.show_SpeedOfLight_range(self.summary)
+            print('Sorry, Not available at the moment.')
         else:
-            self.main_mod.show_SpeedOfLight(self.action)
+            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
 
     def do_cwa(self, arg):
         """
@@ -336,10 +319,11 @@ class EasyNcuShell(cmd.Cmd):
         if not self.context:
             print('No report loaded.')
             return
+        section_name = ('Compute Workload Analysis')
         if self.avg_on:
-            self.main_mod.show_ComputeWorkloadAnalysis_range(self.summary)
+            print('Sorry, Not available at the moment.')
         else:
-            self.main_mod.show_ComputeWorkloadAnalysis(self.action)
+            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
 
     def do_wss(self, arg):
         """
@@ -348,10 +332,11 @@ class EasyNcuShell(cmd.Cmd):
         if not self.context:
             print('No report loaded.')
             return
+        section_name = 'Warp State Statistics'
         if self.avg_on:
-            self.main_mod.show_WarpStateStatistics_range(self.summary)
+            print('Sorry, Not available at the moment.')
         else:
-            self.main_mod.show_WarpStateStatistics(self.action)
+            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
 
     def do_occ(self, arg):
         """
@@ -360,10 +345,11 @@ class EasyNcuShell(cmd.Cmd):
         if not self.context:
             print('No report loaded.')
             return
+        section_name = 'Occupancy'
         if self.avg_on:
-            self.main_mod.show_Occupancy_range(self.summary)
+            print('Sorry, Not available at the moment.')
         else:
-            self.main_mod.show_Occupancy(self.action)
+            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
 
     def do_roofline(self, arg):
         """

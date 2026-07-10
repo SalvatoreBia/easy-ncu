@@ -5,10 +5,10 @@ from rich.markup import escape
 
 console = Console()
 
-def _fmt_val(metric_dict, target_unit=None):
-    val = metric_dict.get('value')
-    unit = metric_dict.get('unit')
-    name = metric_dict.get('name', '').lower()
+def _fmt_val(metric, target_unit=None):
+    val = metric.value()
+    unit = metric.unit()
+    name = metric.label()
     
     if val is None:
         return '[dim]N/A[/dim]'
@@ -30,29 +30,24 @@ def _fmt_val(metric_dict, target_unit=None):
         
     return str(val)
 
-def print_speed_of_light(kernel_name, data):
+def print_section(section_name, kernel_name, data):
     t_left = Table(box=None, show_header=False, expand=True)
     t_left.add_column('Metric',  justify='left', style='magenta')
     t_left.add_column('Value', justify='right', style='white')
-    
-    t_left.add_row(f'{data['sm_sol']['name']} [%]', _fmt_val(data['sm_sol']))
-    t_left.add_row(f'{data['mem_sol']['name']} [%]', _fmt_val(data['mem_sol']))
-    t_left.add_row(f'{data['l1_sol']['name']} [%]', _fmt_val(data['l1_sol']))
-    t_left.add_row(f'{data['l2_sol']['name']} [%]', _fmt_val(data['l2_sol']))
-    t_left.add_row(f'{data['dram_sol']['name']} [%]', _fmt_val(data['dram_sol']))
 
     t_right = Table(box=None, show_header=False, expand=True)
     t_right.add_column('Metric', justify='left', style='magenta')
     t_right.add_column('Value', justify='right', style='white')
     
-    t_right.add_row(escape(f'{data['duration']['name']} [s]'), _fmt_val(data['duration'], '[s]'))
-    t_right.add_row(escape(f'{data['cycles']['name']} [cycle]'), _fmt_val(data['cycles'], '[cycle]'))
-    t_right.add_row(escape(f'{data['sm_active']['name']} [cycle]'), _fmt_val(data['sm_active'], '[cycle]'))
-    t_right.add_row(f'{data['sm_freq']['name']} [Ghz]', _fmt_val(data['sm_freq'], '[Ghz]'))
-    t_right.add_row(f'{data['dram_freq']['name']} [Ghz]', _fmt_val(data['dram_freq'], '[Ghz]'))
-
+    metrics = data.get_entries()
+    for i, m in enumerate(metrics):
+        if i % 2 == 0:
+            t_left.add_row(escape(f'{m.label()} [{m.unit()}]'), _fmt_val(m))
+        else:
+            t_right.add_row(escape(f'{m.label()} [{m.unit()}]'), _fmt_val(m))
+    
     outer_table = Table(
-        title=f'\n[bold]SECTION: Speed of Light (SoL)[/bold] | [dim]Kernel: {kernel_name}[/dim]',
+        title=f'\n[bold]SECTION: {section_name} [/bold] | [dim]Kernel: {kernel_name}[/dim]',
         box=ROUNDED, 
         show_header=False,
         title_justify='left'
@@ -63,80 +58,3 @@ def print_speed_of_light(kernel_name, data):
     outer_table.add_row(t_left, t_right)
     console.print(outer_table)
 
-def print_compute_workload(kernel_name, data):
-    t_left = Table(box=None, show_header=False, expand=True)
-    t_left.add_column('Metric', justify='left', style='magenta')
-    t_left.add_column('Value', justify='right', style='white')
-    t_left.add_row(f"{data['exec_ipc_elapsed']['name']}", _fmt_val(data['exec_ipc_elapsed']))
-    t_left.add_row(f"{data['exec_ipc_active']['name']}", _fmt_val(data['exec_ipc_active']))
-    t_left.add_row(f"{data['issued_ipc_active']['name']}", _fmt_val(data['issued_ipc_active']))
-
-    t_right = Table(box=None, show_header=False, expand=True)
-    t_right.add_column('Metric', justify='left', style='magenta')
-    t_right.add_column('Value', justify='right', style='white')
-    t_right.add_row(escape(f"{data['sm_busy']['name']} [%]"), f"{_fmt_val(data['sm_busy'])}")
-    t_right.add_row(escape(f"{data['issue_slots_busy']['name']} [%]"), f"{_fmt_val(data['issue_slots_busy'])}")
-    t_right.add_row('', '')
-
-    outer_table = Table(
-        title=f'\n[bold]SECTION: Compute Workload Analysis[/bold] | [dim]Kernel: {kernel_name}[/dim]',
-        box=ROUNDED,
-        show_header=False,
-        title_justify='left'
-    )
-    outer_table.add_column(width=50)
-    outer_table.add_column(width=50)
-    outer_table.add_row(t_left, t_right)
-    console.print(outer_table)
-
-def print_warp_state(kernel_name, data):
-    t_left = Table(box=None, show_header=False, expand=True)
-    t_left.add_column('Metric', justify='left', style='magenta')
-    t_left.add_column('Value', justify='right', style='white')
-    t_left.add_row(escape(f"{data['cycles_x_issued']['name']} [cycle]"), f"{_fmt_val(data['cycles_x_issued'])}")
-    t_left.add_row(escape(f"{data['cycles_x_exec']['name']} [cycle]"), f"{_fmt_val(data['cycles_x_exec'])}")
-
-    t_right = Table(box=None, show_header=False, expand=True)
-    t_right.add_column('Metric', justify='left', style='magenta')
-    t_right.add_column('Value', justify='right', style='white')
-    t_right.add_row(f"{data['active_threads']['name']}", f"{_fmt_val(data['active_threads'])}")
-    t_right.add_row(f"{data['not_predicated']['name']}", f"{_fmt_val(data['not_predicated'])}")
-
-    outer_table = Table(
-        title=f'\n[bold]SECTION: Warp State Statistics[/bold] | [dim]Kernel: {kernel_name}[/dim]',
-        box=ROUNDED,
-        show_header=False,
-        title_justify='left'
-    )
-    outer_table.add_column(width=55)
-    outer_table.add_column(width=55)
-    outer_table.add_row(t_left, t_right)
-    console.print(outer_table)
-
-def print_occupancy(kernel_name, data):
-    t_left = Table(box=None, show_header=False, expand=True)
-    t_left.add_column('Metric', justify='left', style='magenta')
-    t_left.add_column('Value', justify='right', style='white')
-    t_left.add_row(f"{data['th_occ']['name']} [%]", f"{_fmt_val(data['th_occ'])}")
-    t_left.add_row(escape(f"{data['th_warps']['name']} [warp]"), f"{_fmt_val(data['th_warps'])}")
-    t_left.add_row(f"{data['ach_occ']['name']} [%]", f"{_fmt_val(data['ach_occ'])}")
-    t_left.add_row(escape(f"{data['ach_warps']['name']} [warp]"), f"{_fmt_val(data['ach_warps'])}")
-
-    t_right = Table(box=None, show_header=False, expand=True)
-    t_right.add_column('Metric', justify='left', style='magenta')
-    t_right.add_column('Value', justify='right', style='white')
-    t_right.add_row(escape(f"{data['block_regs']['name']} [block]"), f"{_fmt_val(data['block_regs'])}")
-    t_right.add_row(escape(f"{data['block_shared']['name']} [block]"), f"{_fmt_val(data['block_shared'])}")
-    t_right.add_row(escape(f"{data['block_warps']['name']} [block]"), f"{_fmt_val(data['block_warps'])}")
-    t_right.add_row(escape(f"{data['block_sm']['name']} [block]"), f"{_fmt_val(data['block_sm'])}")
-
-    outer_table = Table(
-        title=f'\n[bold]SECTION: Occupancy[/bold] | [dim]Kernel: {kernel_name}[/dim]',
-        box=ROUNDED,
-        show_header=False,
-        title_justify='left'
-    )
-    outer_table.add_column(width=55)
-    outer_table.add_column(width=55)
-    outer_table.add_row(t_left, t_right)
-    console.print(outer_table)
