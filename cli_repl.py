@@ -2,7 +2,8 @@ import cmd
 import os
 import cli_views
 import roofline
-import aggregators
+from aggregators import SumAggregator, AvgAggregator
+from rule_parser import RuleParser
 
 
 class EasyNcuShell(cmd.Cmd):
@@ -88,8 +89,8 @@ class EasyNcuShell(cmd.Cmd):
         self.avg_on = False
         self.sum_on = False
 
-        self.sum_agg = aggregators.SumAggregator(self.irange, self.start, self.count, should_load=False)
-        self.avg_agg = aggregators.AvgAggregator(self.irange, self.start, self.count, should_load=False)
+        self.sum_agg = SumAggregator(self.irange, self.start, self.count, should_load=False)
+        self.avg_agg = AvgAggregator(self.irange, self.start, self.count, should_load=False)
 
         self.sections = self.main_mod.load_sections(self.action)
         self._update_prompt()
@@ -432,6 +433,51 @@ class EasyNcuShell(cmd.Cmd):
                 roofline.gen_roofline_fp32(roofline_data, save_to_file=save_plot, save_path=out_path)
             elif precision == 'fp64':
                 print('FP64 precision is currently not implemented.')
+
+    def do_eval(self, arg):
+        """
+        Evaluate a rule file against the currently selected kernel.
+        
+        Usage: 
+            eval <file_path>
+            
+        Example:
+            eval example.rule
+        """
+        if not self.context:
+            print('[ERROR] No report loaded. Use "report <path>" first.')
+            return
+        if not arg:
+            print('[ERROR] Provide a valid rule file path. Usage: eval <file_path>')
+            return
+
+        rule_path = str(arg).strip()
+        if self._any_aggregation():
+            print('[WARNING] Rule evaluation is currently supported only for single kernel inspection.')
+            print(f'          Evaluating against the currently targeted kernel {self.action_idx}.')
+
+        print(f'Evaluating rule file: {rule_path} ...')
+        try:
+            rp = RuleParser()
+            results = rp.evaluate(rule_path, self.action)
+            if results is None:
+                return
+
+            print("\n" + "="*50)
+            print(f" RULE EVALUATION RESULTS ({self.action.name()[:40]}...)")
+            print("="*50)
+            
+            if not results:
+                print(" No expressions were evaluated (check if [EXPRESSION] block is empty).")
+            else:
+                for expr_name, value in results.items():
+                    if isinstance(value, float):
+                        print(f"  {expr_name:<15} = {value:.4f}")
+                    else:
+                        print(f"  {expr_name:<15} = {value}")
+            print("="*50 + "\n")
+        except Exception as e:
+            print(f"[ERROR] An unexpected error occurred during evaluation: {e}")
 
     def do_c(self, arg):
         """

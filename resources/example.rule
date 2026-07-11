@@ -1,0 +1,24 @@
+#
+# this is a template for calculating the data points
+# of a fp32 hierarchical roofline. Note that this is an example
+# and may not work properly on your architecture
+#
+[VARIABLES]
+fadd_pc = smsp__sass_thread_inst_executed_op_fadd_pred_on.sum.per_cycle_elapsed
+fmul_pc = smsp__sass_thread_inst_executed_op_fmul_pred_on.sum.per_cycle_elapsed
+ffma_pc = smsp__sass_thread_inst_executed_op_ffma_pred_on.sum.per_cycle_elapsed
+fadd2_pc = smsp__sass_thread_inst_executed_op_fadd2_pred_on.sum.per_cycle_elapsed
+fmul2_pc = smsp__sass_thread_inst_executed_op_fmul2_pred_on.sum.per_cycle_elapsed
+ffma2_pc = smsp__sass_thread_inst_executed_op_ffma2_pred_on.sum.per_cycle_elapsed
+sm_freq = smsp__cycles_elapsed.avg.per_second
+
+dram_bw = dram__bytes.sum.per_second
+l2_bw = lts__t_bytes.sum.per_second
+l1_bw = l1tex__t_bytes.sum.per_second
+
+[EXPRESSION]
+flops = (fadd_pc + fmul_pc + (2 * ffma_pc) + (2 * fadd2_pc) + (2 * fmul2_pc) + (4 * ffma2_pc)) * sm_freq
+
+ai_dram = flops / dram_bw
+ai_l2 = flops / l2_bw
+ai_l1 = flops / l1_bw
