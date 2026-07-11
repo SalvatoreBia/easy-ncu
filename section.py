@@ -56,14 +56,20 @@ class Section:
         if not isinstance(other, Section):
             return NotImplemented
 
-        new_section = Section(f"{self.name}")
+        new_section = Section(f"{self.name} + {other.name}")
         metrics_map = {}
 
         def merge_metrics(metrics_list):
             for m in metrics_list:
                 name = m.name()
                 if name in metrics_map:
-                    metrics_map[name][1] += m.value()
+                    current_val = metrics_map[name][1]
+                    new_val = m.value()
+
+                    if isinstance(current_val, str) or isinstance(new_val, str):
+                        metrics_map[name][1] = current_val
+                    else:
+                        metrics_map[name][1] += new_val
                 else:
                     metrics_map[name] = [m.label(), m.value(), m.unit()]
 
@@ -81,3 +87,23 @@ class Section:
 
         return new_section
 
+    def __truediv__(self, divisor):
+        if not isinstance(divisor, (int, float)):
+            return NotImplemented
+
+        if divisor == 1:
+            return self
+
+        new_section = Section(self.name)
+        for m in self.metrics:
+            val = m.value()
+            final_value = val if isinstance(val, str) else val / divisor
+
+            new_metric = Metric(
+                label=m.label(),
+                name=m.name(),
+                value=final_value,
+                unit=m.unit()
+            )
+            new_section.add_entry(new_metric)
+        return new_section

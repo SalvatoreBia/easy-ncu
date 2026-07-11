@@ -41,10 +41,11 @@ def print_section(section_name, kernel_name, data):
     
     metrics = data.get_entries()
     for i, m in enumerate(metrics):
+        unit_str = '' if not m.unit() else f'[{m.unit()}]'
         if i % 2 == 0:
-            t_left.add_row(escape(f'{m.label()} [{m.unit()}]'), _fmt_val(m))
+            t_left.add_row(escape(f'{m.label()} {unit_str}'), _fmt_val(m))
         else:
-            t_right.add_row(escape(f'{m.label()} [{m.unit()}]'), _fmt_val(m))
+            t_right.add_row(escape(f'{m.label()} {unit_str}'), _fmt_val(m))
     
     outer_table = Table(
         title=f'\n[bold]SECTION: {section_name} [/bold] | [dim]Kernel: {kernel_name}[/dim]',

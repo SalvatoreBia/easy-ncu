@@ -1,4 +1,4 @@
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from collections import defaultdict
 import section
 
@@ -11,19 +11,31 @@ class Aggregator(ABC):
         'Occupancy'
     ]
 
-    def __init__(self, irange, start, count):
+    def __init__(self, irange, start, count, should_load=True):
         import __main__ as main_module
         self.main_mod = main_module
 
         self.irange = irange
         self.start = start
         self.count = count
+        self.has_changed_slice = False
         self.sections = []
         self.cached = None
+        if should_load:
+            self._load_all()
+
+    def set_slice(self, start, count):
+        self.start = start
+        self.count = count
+        self.has_changed_slice = True
+        self.cached = None
+
+    def load(self):
         self._load_all()
 
     def _load_all(self):
-        for i in range(self.start, self.start+self.count):
+        self.sections = []
+        for i in range(self.start, self.start + self.count):
             action = self.irange.action_by_idx(i)
             self.sections.append(self.main_mod.load_sections(action))
 
@@ -34,7 +46,7 @@ class Aggregator(ABC):
 
 class SumAggregator(Aggregator):
     def aggregate(self):
-        if self.cached:
+        if self.cached and not self.has_changed_slice:
             return self.cached
 
         if self.sections:
@@ -44,7 +56,13 @@ class SumAggregator(Aggregator):
                     if aggregated[key] is None:
                         initial_section = section.Section(key)
                         for metric in obj.get_entries():
-                            initial_section.add_entry(metric)
+                            cloned_metric = section.Metric(
+                                label=metric.label(),
+                                name=metric.name(),
+                                value=metric.value(),
+                                unit=metric.unit()
+                            )
+                            initial_section.add_entry(cloned_metric)
                         aggregated[key] = initial_section
                     else:
                         aggregated[key] = aggregated[key] + obj
@@ -53,3 +71,20 @@ class SumAggregator(Aggregator):
         return None
 
 
+class AvgAggregator(SumAggregator):
+    def aggregate(self):
+        if self.cached and not self.has_changed_slice:
+            return self.cached
+
+        summed_dict = super().aggregate()
+        if not summed_dict:
+            return None
+
+        total_elements = len(self.sections)
+        averaged_dict = {}
+        for key, obj in summed_dict.items():
+            averaged_dict[key] = obj / total_elements
+
+        self.cached = averaged_dict
+        self.has_changed_slice = False
+        return self.cached

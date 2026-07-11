@@ -25,9 +25,13 @@ class EasyNcuShell(cmd.Cmd):
         self.naction = 0
         self.start = 0
         self.count = 0
+
         self.avg_on = False
         self.sum_on = False
+        self.sum_agg = None
+        self.avg_agg = None
         self.aggregated = None
+        
         self.sections = None
 
         if self.context:
@@ -57,24 +61,6 @@ class EasyNcuShell(cmd.Cmd):
             l_side = logo[i]
             print(f"  \033[1;{selected_color}m{l_side}\033[0m")
         print()
-    
-    def _context_init(self):
-        self.range_idx = 0
-        self.irange = self.context.range_by_idx(self.range_idx)
-        self.nrange = self.context.num_ranges()
-        
-        self.action_idx = 0
-        self.action  = self.irange.action_by_idx(self.action_idx)
-        self.naction = self.irange.num_actions()
-
-        self.start = 0
-        self.count = self.naction
-
-        self.avg_on = False
-
-        self.sections = self.main_mod.load_sections(self.action)
-
-        self._update_prompt()
 
     def _update_prompt(self):
         if self.context:
@@ -87,17 +73,28 @@ class EasyNcuShell(cmd.Cmd):
         else:
             self.prompt = '(easy-ncu)> '
 
+    def _context_init(self):
+        self.range_idx = 0
+        self.irange = self.context.range_by_idx(self.range_idx)
+        self.nrange = self.context.num_ranges()
+
+        self.action_idx = 0
+        self.action  = self.irange.action_by_idx(self.action_idx)
+        self.naction = self.irange.num_actions()
+
+        self.start = 0
+        self.count = self.naction
+
+        self.avg_on = False
+        self.sum_on = False
+
+        self.sum_agg = aggregators.SumAggregator(self.irange, self.start, self.count, should_load=False)
+        self.avg_agg = aggregators.AvgAggregator(self.irange, self.start, self.count, should_load=False)
+
+        self.sections = self.main_mod.load_sections(self.action)
+        self._update_prompt()
+
     def do_enable(self, arg):
-        """
-        Enables configuration flags contained in the whitelist.
-
-        Usage:
-            enable <flag>
-
-        Arguments:
-            <flag>              The configuration flag to turn on.
-                                Valid choices: aggregate.avg
-        """
         if not self.context:
             print('No report loaded. Use "report <path>" first.')
             return
@@ -109,11 +106,22 @@ class EasyNcuShell(cmd.Cmd):
         if flag not in self.flags_whitelist:
             print('Flag provided does not exist.')
             return
- 
+
         if flag == 'aggregate.avg':
             self.avg_on = True
+            self.sum_on = False
+            self.avg_agg.set_slice(self.start, self.count)
+            self.avg_agg.load()
+            self.aggregated = self.avg_agg.aggregate()
         elif flag == 'aggregate.sum':
             self.sum_on = True
+            self.avg_on = False
+            self.sum_agg.set_slice(self.start, self.count)
+            self.sum_agg.load()
+            self.aggregated = self.sum_agg.aggregate()
+
+        self._update_prompt()
+        print(f'Aggregation {flag} enabled for the current slice.')
 
     def do_disable(self, arg):
         """
@@ -121,10 +129,6 @@ class EasyNcuShell(cmd.Cmd):
 
         Usage:
             disable <flag>
-
-        Arguments:
-            <flag>              The configuration flag to turn off.
-                                Valid choices: aggregate.avg
         """
         if not self.context:
             print('No report loaded.')
@@ -137,11 +141,16 @@ class EasyNcuShell(cmd.Cmd):
         if flag not in self.flags_whitelist:
             print('Flag provided does not exist.')
             return
-            
-        if self.avg_on:
+
+        if flag == 'aggregate.avg':
             self.avg_on = False
-            self._update_prompt()
+        elif flag == 'aggregate.sum':
+            self.sum_on = False
+
+        if not self._any_aggregation():
+            self.aggregated = None
             print('Aggregation disabled. Single kernel mode active.')
+        self._update_prompt()
 
     def do_showflags(self, arg):
         """
@@ -239,30 +248,20 @@ class EasyNcuShell(cmd.Cmd):
             if idx < 0 or idx >= self.naction:
                 print(f'Kernel index out of bounds. Valid indices for this range are 0 to {self.naction-1}')
                 return
-            
+
             self.action_idx = idx
             self.action = self.irange.action_by_idx(idx)
             self.sections = self.main_mod.load_sections(self.action)
             if self.avg_on:
                 self.avg_on = False
                 print('Auto-disabled aggregation to inspect the selected kernel.')
-                
+
             self._update_prompt()
             print(f'Targeted kernel {idx}: {self.action.name()}')
         except ValueError:
             print('Provide a valid kernel index.')
 
     def do_setslice(self, arg):
-        """
-        Set a custom continuous sub-slice of kernels for aggregation operations.
-
-        Usage:
-            setslice <start-idx> <count>
-
-        Arguments:
-            <start-idx>         The kernel execution index where the slice begins.
-            <count>             The total number of kernels to include inside the slice.
-        """
         if not self.context:
             print('No report loaded.')
             return
@@ -292,11 +291,18 @@ class EasyNcuShell(cmd.Cmd):
             self.start = s_val
             self.count = c_val
 
-            if not self.avg_on:
+            if not self.sum_on and not self.avg_on:
                 self.avg_on = True
-                agg = aggregators.SumAggregator(self.irange, self.start, self.count)
-                self.aggregated = agg.aggregate()
-                print('Auto-enabled aggregation for the selected slice.')
+                print('Auto-enabled average aggregation for the selected slice.')
+
+            if self.avg_on:
+                self.avg_agg.set_slice(self.start, self.count)
+                self.avg_agg.load()
+                self.aggregated = self.avg_agg.aggregate()
+            elif self.sum_on:
+                self.sum_agg.set_slice(self.start, self.count)
+                self.sum_agg.load()
+                self.aggregated = self.sum_agg.aggregate()
 
             self._update_prompt()
             print(f'Evaluating {self.count} kernels starting from index {self.start}.')
@@ -336,6 +342,15 @@ class EasyNcuShell(cmd.Cmd):
         Show the Occupancy section.
         """
         self._show_section('Occupancy')
+
+    def do_full(self, arg):
+        """
+        Show all sections.
+        """
+        self.do_sol(None)
+        self.do_cwa(None)
+        self.do_wss(None)
+        self.do_occ(None)
 
     def do_roofline(self, arg):
         """
