@@ -1,4 +1,23 @@
 
+class Metric:
+    def __init__(self, label, name, value, unit):
+        self._label = label
+        self._name = name
+        self._value = value
+        self._unit = unit
+
+    def label(self):
+        return self._label
+
+    def name(self):
+        return self._name
+
+    def value(self):
+        return self._value
+
+    def unit(self):
+        return self._unit
+
 
 class Section:
     def __init__(self, name):
@@ -16,14 +35,14 @@ class Section:
         return len(self.metrics)
 
     def __getitem__(self, key):
-        if 0 > key > len(self.metrics)-1:
+        if key < 0 or key >= len(self.metrics):
             return None
         m = self.metrics[key] 
         return {
-            'metric_label' : m.label(),
-            'metric_name' : m.name(),
-            'metric_value' : m.value(),
-            'metric_unit' : m.unit()
+            'metric_label': m.label(),
+            'metric_name': m.name(),
+            'metric_value': m.value(),
+            'metric_unit': m.unit()
         }
 
     def __str__(self):
@@ -32,3 +51,33 @@ class Section:
             m = self.metrics[i]
             s += f'    {m.label()} => {m.name()}\n'
         return s
+
+    def __add__(self, other):
+        if not isinstance(other, Section):
+            return NotImplemented
+
+        new_section = Section(f"{self.name}")
+        metrics_map = {}
+
+        def merge_metrics(metrics_list):
+            for m in metrics_list:
+                name = m.name()
+                if name in metrics_map:
+                    metrics_map[name][1] += m.value()
+                else:
+                    metrics_map[name] = [m.label(), m.value(), m.unit()]
+
+        merge_metrics(self.metrics)
+        merge_metrics(other.metrics)
+
+        for name, data in metrics_map.items():
+            new_metric = Metric(
+                label=data[0],
+                name=name,
+                value=data[1],
+                unit=data[2]
+            )
+            new_section.add_entry(new_metric)
+
+        return new_section
+

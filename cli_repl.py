@@ -2,12 +2,13 @@ import cmd
 import os
 import cli_views
 import roofline
-import section
+import aggregators
+
 
 class EasyNcuShell(cmd.Cmd):
     intro = 'Welcome to easy-ncu interactive shell. Check for the commands with "help".\n'
     prompt = '(easy-ncu)> '
-    flags_whitelist = ['aggregate.avg']
+    flags_whitelist = ['aggregate.sum', 'aggregate.avg']
 
     def __init__(self, context):
         super().__init__()
@@ -25,7 +26,8 @@ class EasyNcuShell(cmd.Cmd):
         self.start = 0
         self.count = 0
         self.avg_on = False
-
+        self.sum_on = False
+        self.aggregated = None
         self.sections = None
 
         if self.context:
@@ -102,16 +104,16 @@ class EasyNcuShell(cmd.Cmd):
         if not arg:
             print('Provide a valid flag to toggle.')
             return
-        
+
         flag = str(arg).strip()
         if flag not in self.flags_whitelist:
             print('Flag provided does not exist.')
             return
-            
-        if not self.avg_on:
+ 
+        if flag == 'aggregate.avg':
             self.avg_on = True
-            self._update_prompt()
-            print('Aggregation enabled.')
+        elif flag == 'aggregate.sum':
+            self.sum_on = True
 
     def do_disable(self, arg):
         """
@@ -240,7 +242,7 @@ class EasyNcuShell(cmd.Cmd):
             
             self.action_idx = idx
             self.action = self.irange.action_by_idx(idx)
-            
+            self.sections = self.main_mod.load_sections(self.action)
             if self.avg_on:
                 self.avg_on = False
                 print('Auto-disabled aggregation to inspect the selected kernel.')
@@ -292,64 +294,48 @@ class EasyNcuShell(cmd.Cmd):
 
             if not self.avg_on:
                 self.avg_on = True
+                agg = aggregators.SumAggregator(self.irange, self.start, self.count)
+                self.aggregated = agg.aggregate()
                 print('Auto-enabled aggregation for the selected slice.')
 
             self._update_prompt()
             print(f'Evaluating {self.count} kernels starting from index {self.start}.')
         except ValueError:
             print('Arguments must be valid integers.')
-    
+
+    def _any_aggregation(self):
+        return self.avg_on or self.sum_on
+
+    def _show_section(self, section_name):
+        if not self.context:
+            print('No report loaded.')
+            return
+        sect = self.aggregated[section_name] if self._any_aggregation() else self.sections[section_name]
+        cli_views.print_section(section_name, self.action.name(), sect)
+
     def do_sol(self, arg):
         """
         Show the Speed of Light section.
         """
-        if not self.context:
-            print('No report loaded.')
-            return
-        section_name = 'GPU Speed Of Light Throughput'
-        if self.avg_on:
-            print('Sorry, Not available at the moment.')
-        else:
-            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
+        self._show_section('GPU Speed Of Light Throughput')
 
     def do_cwa(self, arg):
         """
         Show the Compute Workload Analysis section.
         """
-        if not self.context:
-            print('No report loaded.')
-            return
-        section_name = ('Compute Workload Analysis')
-        if self.avg_on:
-            print('Sorry, Not available at the moment.')
-        else:
-            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
+        self._show_section('Compute Workload Analysis')
 
     def do_wss(self, arg):
         """
         Show the Warp State Statistics section.
         """
-        if not self.context:
-            print('No report loaded.')
-            return
-        section_name = 'Warp State Statistics'
-        if self.avg_on:
-            print('Sorry, Not available at the moment.')
-        else:
-            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
+        self._show_section('Warp State Statistics')
 
     def do_occ(self, arg):
         """
         Show the Occupancy section.
         """
-        if not self.context:
-            print('No report loaded.')
-            return
-        section_name = 'Occupancy'
-        if self.avg_on:
-            print('Sorry, Not available at the moment.')
-        else:
-            cli_views.print_section(section_name, self.action.name(), self.sections[section_name])
+        self._show_section('Occupancy')
 
     def do_roofline(self, arg):
         """
