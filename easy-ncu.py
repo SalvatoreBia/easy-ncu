@@ -185,7 +185,7 @@ def load_sections(action):
     sections = {}
     for s in action.sections():
         sect = section.Section(s.name())
-        for m in s.body_metrics():
+        for m in s.header_metrics():
             sect.add_entry(m)
         sections[sect.name] = sect
     return sections
