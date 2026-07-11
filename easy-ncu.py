@@ -156,9 +156,7 @@ def get_roofline_coords_fp32(action, full=False):
     fadd_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fadd_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
     fmul_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_fmul_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
     ffma_pc = get_metric(action, '', 'smsp__sass_thread_inst_executed_op_ffma_pred_on.sum.per_cycle_elapsed').get('value', 0) or 0
-    print(fadd_pc)
-    print(fmul_pc)
-    print(ffma_pc)
+
     sm_freq_metric = get_metric(action, '', 'smsp__cycles_elapsed.avg.per_second')
     sm_freq_hz = float(sm_freq_metric.get('value', 0) or 0)
 
