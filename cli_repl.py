@@ -16,7 +16,6 @@
 import cmd
 import os
 import cli_views
-import roofline
 from aggregators import SumAggregator, AvgAggregator
 from rule_parser import RuleParser
 
@@ -332,7 +331,16 @@ class EasyNcuShell(cmd.Cmd):
         if not self.context:
             print('No report loaded.')
             return
-        sect = self.aggregated[section_name] if self._any_aggregation() else self.sections[section_name]
+
+        sect = None
+        anyagg_cond = self._any_aggregation()
+        if anyagg_cond and section_name in self.aggregated:
+            sect = self.aggregated[section_name]
+        elif not anyagg_cond and section_name in self.sections:
+            sect = self.sections[section_name]
+        else:
+            print(f'{section_name} section is not present on this report. Skipping it...')
+            return
         cli_views.print_section(section_name, self.action.name(), sect)
 
     def do_sol(self, arg):
@@ -359,15 +367,51 @@ class EasyNcuShell(cmd.Cmd):
         """
         self._show_section('Occupancy')
 
+    def do_mem(self, arg):
+        """
+        Show the Memory Workload Analysis section.
+        """
+        self._show_section('Memory Workload Analysis')
+
+    def do_sched(self, arg):
+        """
+        Show Scheduler Statistics section.
+        """
+        self._show_section('Scheduler Statistics')
+
+    def do_inst(self, arg):
+        """
+        Show Instruction Statistics section.
+        """
+        self._show_section('Instruction Statistics')
+
+    def do_launch(self, arg):
+        """
+        Show Launch Statistics section.
+        """
+        self._show_section('Launch Statistics')
+
+    def do_scountrs(self, arg):
+        """
+        Show Source Counters section.
+        """
+        self._show_section('Source Counters')
+
     def do_full(self, arg):
         """
         Show all sections.
         """
         self.do_sol(None)
         self.do_cwa(None)
+        self.do_mem(None)
+        self.do_sched(None)
         self.do_wss(None)
+        self.do_inst(None)
+        self.do_launch(None)
         self.do_occ(None)
+        self.do_scountrs(None)
 
+    '''
     def do_roofline(self, arg):
         """
         Show or save the Roofline plot for the current kernel.
@@ -448,6 +492,7 @@ class EasyNcuShell(cmd.Cmd):
                 roofline.gen_roofline_fp32(roofline_data, save_to_file=save_plot, save_path=out_path)
             elif precision == 'fp64':
                 print('FP64 precision is currently not implemented.')
+    '''
 
     def do_eval(self, arg):
         """
@@ -467,21 +512,31 @@ class EasyNcuShell(cmd.Cmd):
             return
 
         rule_path = str(arg).strip()
-        if self._any_aggregation():
-            print('[WARNING] Rule evaluation is currently supported only for single kernel inspection.')
-            print(f'          Evaluating against the currently targeted kernel {self.action_idx}.')
-
         print(f'Evaluating rule file: {rule_path} ...')
         try:
             rp = RuleParser()
-            results = rp.evaluate(rule_path, self.action)
+            results = None
+            if self.sum_on or self.avg_on:
+                for i in range(self.start, self.start+self.count):
+                    temp = rp.evaluate(rule_path, self.irange.action_by_idx(i))
+                    if results is None:
+                        results = temp
+                    else:
+                        for k, v in temp.items():
+                            results[k] += v
+                if self.avg_on:
+                    for k in results.keys():
+                        results[k] /= self.count
+            else:
+                results = rp.evaluate(rule_path, self.action)
+
             if results is None:
                 return
 
             print("\n" + "="*50)
             print(f" RULE EVALUATION RESULTS ({self.action.name()[:40]}...)")
             print("="*50)
-            
+
             if not results:
                 print(" No expressions were evaluated (check if [EXPRESSION] block is empty).")
             else:

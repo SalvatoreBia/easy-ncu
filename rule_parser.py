@@ -103,7 +103,7 @@ class RuleParser:
                         ncu_name = val.strip()
                         metric = self.main_mod.get_metric(action, '', ncu_name)
                         if not metric['value']:
-                            print(f'[WARNING] Query for metric {val} has returned None. Setting it to zero...')
+                            if self.main_mod.debug: print(f'[WARNING] Query for metric {val} has returned None. Setting it to zero...')
                             variables[varname] = 0
                         else:
                             variables[varname] = metric['value']

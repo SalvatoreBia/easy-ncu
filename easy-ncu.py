@@ -14,16 +14,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import sys
+import argparse
 import os
 import configparser
-import cli_views
 import cli_repl
 import pathlib
 import section
 
 
 CFG = 'config.cfg'
-debug = True
+debug = False
 ncu_path = None
 
 def locate_ncu_pymodule(start='/'):
@@ -189,19 +189,31 @@ def load_sections(action):
     return sections
 
 def main():
-    if len(sys.argv) > 2:
-        print('[ERROR] Only one report file can be selected.')
-        sys.exit(1)
-
+    global debug
+    parser = argparse.ArgumentParser(
+        description="easy-ncu - A smart CLI tool for NVIDIA Nsight Compute report analysis."
+    )
+    parser.add_argument(
+        '--debug', 
+        action='store_true', 
+        help='Enable debug mode'
+    )
+    parser.add_argument(
+        'report', 
+        nargs='?', 
+        help='Path to a valid .ncu-rep file'
+    )
+    args = parser.parse_args()
+    debug = args.debug
     context = None
-    if len(sys.argv) == 2:
+    if args.report:
+        report = args.report
+        if not os.path.exists(report) or not report.endswith('.ncu-rep'):
+            print(f'[ERROR] Report not found or invalid extension at: {report}')
+            sys.exit(1)
+        if debug:
+            print(f'[DEBUG] Input report found at {report}')
         try:
-            report = sys.argv[1]
-            if not os.path.exists(report) or not report.endswith('.ncu-rep'):
-                print(f'[ERROR] Report not found or invalid extension at: {report}')
-                sys.exit(1)
-            if debug:
-                print(f'[DEBUG] Input report found at {report}')
             context = ncu_report.load_report(report)
             if debug:
                 print('[DEBUG] ncu report loaded')

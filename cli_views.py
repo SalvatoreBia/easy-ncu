@@ -28,16 +28,7 @@ def _fmt_val(metric, target_unit=None):
     if val is None:
         return '[dim]N/A[/dim]'
     
-    if target_unit == '[s]' and unit == 'ns':
-        return f'{float(val) / 1_000_000_000:.2f}'
-    
-    if target_unit == '[Ghz]' and (unit == 'hz' or 'frequency' in name):
-        return f'{float(val) / 1_000_000_000:.2f}'
-        
     if isinstance(val, (int, float)):
-        if target_unit == '[cycle]' or 'cycles' in name:
-            return f'{int(val):,}'.replace(',', '.')
-            
         formatted = f'{val:.2f}'
         if val > 1000:
             return f'{float(formatted):,}'.replace(',', '.')
@@ -69,8 +60,8 @@ def print_section(section_name, kernel_name, data):
         title_justify='left'
     )
     
-    outer_table.add_column(width=50)
-    outer_table.add_column(width=50)
+    outer_table.add_column(width=70)
+    outer_table.add_column(width=70)
     outer_table.add_row(t_left, t_right)
     console.print(outer_table)
 
