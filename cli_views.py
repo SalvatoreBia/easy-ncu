@@ -106,8 +106,8 @@ def print_eval_results(rule_path, kernel_name, result):
         val = val if not isinstance(val, float) else f"{val:.4f}"
         t_res.add_row(f"[cyan]{out_str}[/cyan]={" " * aftereqlen}{val}")
 
-    title = f'[bold]Evaluated expressions for kernel[/bold] [dim]{escape(kernel_name)}[/dim]\n[bold]From rule file :[/bold] {escape(rule_path)}'
-    console.print(title)
+    title = f'[bold]Evaluated expressions for kernel[/bold] [dim]{escape(kernel_name)}[/dim]\n[bold]From rule file :[/bold] [dim]{escape(rule_path)}[dim]'
+    console.print(title, highlight=False)
     console.print(t_res)
     console.print()
 
