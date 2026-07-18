@@ -429,7 +429,6 @@ class EasyNcuShell(cmd.Cmd):
             return
 
         rule_path = str(arg).strip()
-        print(f'Evaluating rule file: {rule_path} ...')
         try:
             rp = RuleParser()
             results = None
@@ -450,19 +449,10 @@ class EasyNcuShell(cmd.Cmd):
             if results is None:
                 return
 
-            print("\n" + "="*50)
-            print(f" RULE EVALUATION RESULTS ({self.action.name()[:40]}...)")
-            print("="*50)
-
             if not results:
-                print(" No expressions were evaluated (check if [EXPRESSION] block is empty).")
+                print(" No expressions were evaluated (check if [EXPRESSIONS] block is empty).")
             else:
-                for expr_name, value in results.items():
-                    if isinstance(value, float):
-                        print(f"  {expr_name:<15} = {value:.4f}")
-                    else:
-                        print(f"  {expr_name:<15} = {value}")
-            print("="*50 + "\n")
+                cli_views.print_eval_results(rule_path, self.action.name(), results)
         except Exception as e:
             print(f"[ERROR] An unexpected error occurred during evaluation: {e}")
 

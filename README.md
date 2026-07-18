@@ -21,13 +21,13 @@ Since a lot of metrics inside an NCU report are calculated by Nsight referencing
 
 #### Rule File Syntax
 
-Rule files (typically saved with a `.rule` extension) use a simple, plain-text syntax divided into two mandatory blocks: [VARIABLES] and [EXPRESSION].
+Rule files (typically saved with a `.rule` extension) use a simple, plain-text syntax divided into two mandatory blocks: [VARIABLES] and [EXPRESSIONS].
 
 1. [VARIABLES] Block: This section maps easy-to-read aliases to the raw NVIDIA metric names found in the report.
    * Syntax: alias = nvidia_metric_name
    * Note: If a metric is not found in the specific report or returns None, easy-ncu will automatically fallback-initialize it to 0.0 to prevent runtime crashes.
    
-2. [EXPRESSION] Block: This section contains the actual algebraic formulas you want to compute. 
+2. [EXPRESSIONS] Block: This section contains the actual algebraic formulas you want to compute. 
    * Syntax: result_name = math_expression_using_aliases
    * Supported Operations: Standard operators (+, -, *, /, **) and native multi-argument mathematical functions (currently, only `max()` and `min()`).
    * Chaining: Expressions are evaluated top-to-bottom. You can use the result of a previous expression inside a subsequent one!

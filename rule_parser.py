@@ -54,7 +54,7 @@ def eval_node(node, variables):
 class RuleParser:
     BLOCKS = {
         'vars' : '[VARIABLES]',
-        'expr' : '[EXPRESSION]'
+        'expr' : '[EXPRESSIONS]'
     }
 
     def __init__ (self):

@@ -16,7 +16,7 @@ dram_bw = dram__bytes.sum.per_second
 l2_bw = lts__t_bytes.sum.per_second
 l1_bw = l1tex__t_bytes.sum.per_second
 
-[EXPRESSION]
+[EXPRESSIONS]
 flops = (fadd_pc + fmul_pc + (2 * ffma_pc) + (2 * fadd2_pc) + (2 * fmul2_pc) + (4 * ffma2_pc)) * sm_freq
 
 ai_dram = flops / dram_bw

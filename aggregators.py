@@ -19,13 +19,6 @@ import section
 
 
 class Aggregator(ABC):
-    SECTIONS = [
-        'GPU Speed Of Light Throughput',
-        'Compute Workload Analysis',
-        'Warp State Statistics',
-        'Occupancy'
-    ]
-
     def __init__(self, irange, start, count, should_load=True):
         import __main__ as main_module
         self.main_mod = main_module
