@@ -6,13 +6,6 @@
 
 The currently available commands can be seen by typing `help`. To see the description of each command you can type `help <command_name>`.
 
-The code allows for collecting the following sections (more will be added later):
-- Speed of Light
-- Compute Workload Analysis
-- Warp State Statistics
-- Occupancy
-- Roofline (not tested properly)
-
 ---
 
 ### Rule Evaluation
