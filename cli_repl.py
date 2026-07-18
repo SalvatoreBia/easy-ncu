@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import cmd
 import os
+
 import cli_views
 from aggregators import SumAggregator, AvgAggregator
 from rule_parser import RuleParser
@@ -24,10 +25,21 @@ class EasyNcuShell(cmd.Cmd):
     intro = 'Welcome to easy-ncu interactive shell. Check for the commands with "help".\n'
     prompt = '(easy-ncu)> '
     flags_whitelist = ['aggregate.sum', 'aggregate.avg']
+    logo = [
+        r' _______   ________  ________       ___    ___      ________   ________  ___  ___',
+        r'|\  ___ \ |\   __  \|\   ____\     |\  \  /  /|    |\   ___  \|\   ____\|\  \|\  \ ',
+        r'\ \   __/|\ \  \|\  \ \  \___|_    \ \  \/  / /    \ \  \\ \  \ \  \___|\ \  \\\  \ ',
+        r' \ \  \_|/_\ \   __  \ \_____  \    \ \    / /      \ \  \\ \  \ \  \    \ \  \\\  \ ',
+        r'  \ \  \_|\ \ \  \ \  \|____|\  \    \/  /  /        \ \  \\ \  \ \  \____\ \  \\\  \ ',
+        r'   \ \_______\ \__\ \__\____\_\  \ __/  / /           \ \__\\ \__\ \_______\ \_______\ ',
+        r'    \|_______|\|__|\|__|\_________\\___/ /             \|__| \|__|\|_______|\|_______|',
+        r'                       \|_________\|___|/'
+    ]
 
-    def __init__(self, context):
+    def __init__(self, context, debug_mode=False):
         super().__init__()
         self.context = context
+        self.debug_mode = debug_mode
 
         import __main__ as main_module
         self.main_mod = main_module
@@ -56,26 +68,7 @@ class EasyNcuShell(cmd.Cmd):
 
     def do_fetch(self, arg):
         """Cool logo"""
-        logo = [
-            r' _______   ________  ________       ___    ___      ________   ________  ___  ___',
-            r'|\  ___ \ |\   __  \|\   ____\     |\  \  /  /|    |\   ___  \|\   ____\|\  \|\  \ ',
-            r'\ \   __/|\ \  \|\  \ \  \___|_    \ \  \/  / /    \ \  \\ \  \ \  \___|\ \  \\\  \ ',
-            r' \ \  \_|/_\ \   __  \ \_____  \    \ \    / /      \ \  \\ \  \ \  \    \ \  \\\  \ ',
-            r'  \ \  \_|\ \ \  \ \  \|____|\  \    \/  /  /        \ \  \\ \  \ \  \____\ \  \\\  \ ',
-            r'   \ \_______\ \__\ \__\____\_\  \ __/  / /           \ \__\\ \__\ \_______\ \_______\ ',
-            r'    \|_______|\|__|\|__|\_________\\___/ /             \|__| \|__|\|_______|\|_______|',
-            r'                       \|_________\|___|/'
-        ]
-
-        import random
-        available_colors = ['31', '32', '33', '34', '35', '36']
-        selected_color = random.choice(available_colors)
-
-        print()
-        for i in range(len(logo)):
-            l_side = logo[i]
-            print(f"  \033[1;{selected_color}m{l_side}\033[0m")
-        print()
+        cli_views.fetch(self.logo, self.debug_mode)
 
     def _update_prompt(self):
         if self.context:
@@ -110,16 +103,22 @@ class EasyNcuShell(cmd.Cmd):
         self._update_prompt()
 
     def do_enable(self, arg):
+        """
+        Enables configuration flags contained in the whitelist.
+
+        Usage:
+            enable <flag>
+        """
         if not self.context:
-            print('No report loaded. Use "report <path>" first.')
+            cli_views.print_error_string('No report loaded. Use "report <path>" first.')
             return
         if not arg:
-            print('Provide a valid flag to toggle.')
+            cli_views.print_error_string('Provide a valid flag to toggle.')
             return
 
         flag = str(arg).strip()
         if flag not in self.flags_whitelist:
-            print('Flag provided does not exist.')
+            cli_views.print_error_string('Flag provided does not exist.')
             return
 
         if flag == 'aggregate.avg':
@@ -136,7 +135,7 @@ class EasyNcuShell(cmd.Cmd):
             self.aggregated = self.sum_agg.aggregate()
 
         self._update_prompt()
-        print(f'Aggregation {flag} enabled for the current slice.')
+        cli_views.print_info_string(f'Aggregation {flag} enabled for the current slice.')
 
     def do_disable(self, arg):
         """
@@ -146,15 +145,15 @@ class EasyNcuShell(cmd.Cmd):
             disable <flag>
         """
         if not self.context:
-            print('No report loaded.')
+            cli_views.print_error_string('No report loaded.')
             return
         if not arg:
-            print('Provide a valid flag to toggle.')
+            cli_views.print_error_string('Provide a valid flag to toggle.')
             return
 
         flag = str(arg).strip()
         if flag not in self.flags_whitelist:
-            print('Flag provided does not exist.')
+            cli_views.print_error_string('Flag provided does not exist.')
             return
 
         if flag == 'aggregate.avg':
@@ -164,7 +163,7 @@ class EasyNcuShell(cmd.Cmd):
 
         if not self._any_aggregation():
             self.aggregated = None
-            print('Aggregation disabled. Single kernel mode active.')
+            cli_views.print_info_string('Aggregation disabled. Single kernel mode active.')
         self._update_prompt()
 
     def do_showflags(self, arg):
@@ -174,9 +173,7 @@ class EasyNcuShell(cmd.Cmd):
         Usage:
             showflags
         """
-        print(' Available flags:')
-        for f in self.flags_whitelist:
-            print(f'    {f}')
+        cli_views.print_available_elements('flags', self.flags_whitelist)
 
     def do_report(self, arg):
         """
@@ -189,19 +186,19 @@ class EasyNcuShell(cmd.Cmd):
             <path>              The filepath pointing to the .ncu-rep file.
         """
         if not arg:
-            print('Provide a valid ncu-rep file.')
+            cli_views.print_error_string('Provide a valid ncu-rep file.')
             return
 
         try:
             rep_path = str(arg).strip()
             if not os.path.exists(rep_path):
-                print(f'Report file at {rep_path} does not exist.')
+                cli_views.print_error_string(f'Report file at {rep_path} does not exist.')
                 return
             self.context = self.main_mod.load_report_wrapper(rep_path)
             self._context_init()
-            print(f'Successfully loaded report: {rep_path}')
+            cli_views.print_info_string('Successfully loaded report: {rep_path}')
         except Exception as e:
-            print(f'Failed to load report: {e}')
+            cli_views.print_error_string('Failed to load report: {e}')
             return
 
     def do_setrange(self, arg):
@@ -215,16 +212,16 @@ class EasyNcuShell(cmd.Cmd):
             <range-idx>         The index of the range window to load.
         """
         if not self.context:
-            print('No report loaded.')
+            cli_views.print_error_string('No report loaded.')
             return
         if not arg:
-            print('Provide a valid range index.')
+            cli_views.print_error_string('Provide a valid range index.')
             return
         
         try:
             idx = int(arg)
             if idx < 0 or idx >= self.nrange:
-                print(f'Range index out of bounds. Valid indices are 0 to {self.nrange-1}')
+                cli_views.print_error_string(f'Range index out of bounds. Valid indices are 0 to {self.nrange-1}')
                 return
             
             self.range_idx = idx
@@ -238,9 +235,9 @@ class EasyNcuShell(cmd.Cmd):
             self.count = self.naction
             
             self._update_prompt()
-            print(f'Switched to range {idx}.')
+            cli_views.print_info_string('Switched to range {idx}.')
         except ValueError:
-            print('Provide a valid range index.')
+            cli_views.print_error_string('Provide a valid range index.')
 
     def do_setkernel(self, arg):
         """
@@ -253,15 +250,15 @@ class EasyNcuShell(cmd.Cmd):
             <kernel-idx>        The index of the execution action to load.
         """
         if not self.context:
-            print('No report loaded.')
+            cli_views.print_error_string('No report loaded.')
             return
         if not arg:
-            print('Provide a valid kernel index.')
+            cli_views.print_error_string('Provide a valid kernel index.')
             return
         try:
             idx = int(arg)
             if idx < 0 or idx >= self.naction:
-                print(f'Kernel index out of bounds. Valid indices for this range are 0 to {self.naction-1}')
+                cli_views.print_error_string(f'Kernel index out of bounds. Valid indices for this range are 0 to {self.naction-1}')
                 return
 
             self.action_idx = idx
@@ -269,24 +266,36 @@ class EasyNcuShell(cmd.Cmd):
             self.sections = self.main_mod.load_sections(self.action)
             if self.avg_on:
                 self.avg_on = False
-                print('Auto-disabled aggregation to inspect the selected kernel.')
+                cli_views.print_info_string('Auto-disabled aggregation to inspect the selected kernel.')
 
             self._update_prompt()
-            print(f'Targeted kernel {idx}: {self.action.name()}')
+            cli_views.print_info_string('Targeted kernel {idx}: {self.action.name()}')
         except ValueError:
-            print('Provide a valid kernel index.')
+            cli_views.print_error_string('Provide a valid kernel index.')
 
     def do_setslice(self, arg):
+        """
+        Load a consecutive number of kernels from the current profiling range.
+        setslice use it's mandatory before performing any metrics aggregation. If not done,
+        easy-ncu will automatically assign as a slice all the available actions in the range.
+
+        Usage:
+            setslice <start> <count>
+
+        Arguments:
+            <start>             Index of the first kernel
+            <count>             Total number of kernels (<start> included)
+        """
         if not self.context:
-            print('No report loaded.')
+            cli_views.print_error_string('No report loaded.')
             return
         if not arg:
-            print('Provide valid start and count values.')
+            cli_views.print_error_string('Provide valid start and count values.')
             return
 
         parts = arg.split()
         if len(parts) != 2:
-            print('Invalid arguments. Usage: setslice <start-idx> <count>')
+            cli_views.print_error_string('Invalid arguments. Usage: setslice <start-idx> <count>')
             return
 
         try:
@@ -297,7 +306,7 @@ class EasyNcuShell(cmd.Cmd):
                 print(f'Start index out of bounds. Valid indices are 0 to {self.naction-1}')
                 return
             if c_val <= 0:
-                print('Count must be greater than 0.')
+                cli_views.print_error_string('Count must be greater than 0.')
                 return
             if s_val + c_val > self.naction:
                 print(f'Slice exceeds range window. Maximum remaining kernels from start: {self.naction - s_val}')
@@ -308,7 +317,7 @@ class EasyNcuShell(cmd.Cmd):
 
             if not self.sum_on and not self.avg_on:
                 self.avg_on = True
-                print('Auto-enabled average aggregation for the selected slice.')
+                cli_views.print_info_string('Auto-enabled average aggregation for the selected slice.')
 
             if self.avg_on:
                 self.avg_agg.set_slice(self.start, self.count)
@@ -322,14 +331,14 @@ class EasyNcuShell(cmd.Cmd):
             self._update_prompt()
             print(f'Evaluating {self.count} kernels starting from index {self.start}.')
         except ValueError:
-            print('Arguments must be valid integers.')
+            cli_views.print_error_string('Arguments must be valid integers.')
 
     def _any_aggregation(self):
         return self.avg_on or self.sum_on
 
     def _show_section(self, section_name):
         if not self.context:
-            print('No report loaded.')
+            cli_views.print_error_string('No report loaded.')
             return
 
         sect = None
@@ -339,7 +348,7 @@ class EasyNcuShell(cmd.Cmd):
         elif not anyagg_cond and section_name in self.sections:
             sect = self.sections[section_name]
         else:
-            print(f'{section_name} section is not present on this report. Skipping it...')
+            cli_views.print_warning_string(f'{section_name} section is not present on this report. Skipping it...')
             return
         cli_views.print_section(section_name, self.action.name(), sect)
 
@@ -411,6 +420,20 @@ class EasyNcuShell(cmd.Cmd):
         self.do_occ(None)
         self.do_scountrs(None)
 
+    def do_showsections(self, arg):
+        """
+        Show all available sections for the selected kernel(s).
+        """
+        anyagg = self._any_aggregation()
+        if anyagg:
+            if not self.aggregated or bool(self.aggregated):
+                cli_views.print_info_string(f"Sections for the currently selected kernels are not present or were not collected.")
+                return
+        elif not self.sections or not bool(self.sections):
+            cli_views.print_info_string(f"Sections for the currently selected kernel are not present or were not collected.")
+            return
+        cli_views.print_available_elements('sections', self.sections.keys() if not anyagg else self.aggregated.keys())
+
     def do_eval(self, arg):
         """
         Evaluate a rule file against the currently selected kernel.
@@ -422,10 +445,10 @@ class EasyNcuShell(cmd.Cmd):
             eval example.rule
         """
         if not self.context:
-            print('[ERROR] No report loaded. Use "report <path>" first.')
+            cli_views.print_error_string('No report loaded. Use "report <path>" first.')
             return
         if not arg:
-            print('[ERROR] Provide a valid rule file path. Usage: eval <file_path>')
+            cli_views.print_error_string('Provide a valid rule file path. Usage: eval <file_path>')
             return
 
         rule_path = str(arg).strip()
@@ -450,11 +473,11 @@ class EasyNcuShell(cmd.Cmd):
                 return
 
             if not results:
-                print(" No expressions were evaluated (check if [EXPRESSIONS] block is empty).")
+                cli_views.print_info_string("No expressions were evaluated (check if [EXPRESSIONS] block is empty).")
             else:
                 cli_views.print_eval_results(rule_path, self.action.name(), results)
         except Exception as e:
-            print(f"[ERROR] An unexpected error occurred during evaluation: {e}")
+            cli_views.print_error_string(f"An unexpected error occurred during evaluation: {e}")
 
     def do_c(self, arg):
         """
@@ -470,6 +493,9 @@ class EasyNcuShell(cmd.Cmd):
         return True
 
     def do_EOF(self, arg):
+        """
+        Exit and close the interactive shell sessions with Ctrl+D.
+        """
         print()
         return True
 

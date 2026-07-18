@@ -17,6 +17,8 @@ import ast
 import os
 import re
 
+import cli_views
+
 
 def eval_node(node, variables):
     if isinstance(node, ast.Constant):
@@ -103,7 +105,7 @@ class RuleParser:
                         ncu_name = val.strip()
                         metric = self.main_mod.get_metric(action, '', ncu_name)
                         if not metric['value']:
-                            if self.main_mod.debug: print(f'[WARNING] Query for metric {val} has returned None. Setting it to zero...')
+                            if self.main_mod.debug: cli_views.print_warning_string(f'Query for metric {val} has returned None. Setting it to zero...')
                             variables[varname] = 0
                         else:
                             variables[varname] = metric['value']

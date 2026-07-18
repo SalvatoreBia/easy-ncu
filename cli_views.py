@@ -17,6 +17,9 @@ from rich.console import Console
 from rich.table import Table
 from rich.box import ROUNDED
 from rich.markup import escape
+import random
+
+REPOSITORY = 'https://github.com/SalvatoreBia/easy-ncu'
 
 console = Console()
 
@@ -35,6 +38,32 @@ def _fmt_val(metric, target_unit=None):
         return formatted.replace('.', ',')
         
     return str(val)
+
+def fetch(logo, is_in_debug_mode):
+    rich_colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan']
+    logo_color = random.choice(rich_colors)
+    logo_str = "\n".join([f"[{logo_color}]{line}[/{logo_color}]" for line in logo])
+
+    info_lines = [
+        f"[bold {logo_color}]easy-ncu[/bold {logo_color}]@[bold white]shell[/bold white]",
+        "[dim]---------------------------------------[/dim]",
+        f"[bold {logo_color}]Debug Mode :[/bold {logo_color}] {'Enabled' if is_in_debug_mode else 'Disabled'}",
+        f"[bold {logo_color}]GitHub     :[/bold {logo_color}] [underline]{REPOSITORY}[/underline]",
+        f"[bold {logo_color}]License    :[/bold {logo_color}] GNU GPLv3",
+        "",
+        " ".join([f"[background color={c}]   [/background color]" for c in ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']])
+    ]
+    info_str = "\n".join(info_lines)
+
+    fetch_table = Table(box=None, show_header=False, pad_edge=False)
+    fetch_table.add_column("Logo", justify="left", vertical="middle")
+    fetch_table.add_column("Info", justify="left", vertical="middle")
+
+    fetch_table.add_row(logo_str, info_str)
+
+    console.print()
+    console.print(fetch_table)
+    console.print()
 
 def print_section(section_name, kernel_name, data):
     t_left = Table(box=None, show_header=False, expand=True)
@@ -81,4 +110,21 @@ def print_eval_results(rule_path, kernel_name, result):
     console.print(title)
     console.print(t_res)
     console.print()
+
+def print_info_string(s):
+    console.print(f'[cyan i]{s}[/i cyan]')
+
+def print_warning_string(s):
+    console.print(f'[yellow i]{s}[/i yellow]')
+
+def print_error_string(s):
+    console.print(f"[red i]{s}[/i red]")
+
+def print_debug_string(s):
+    console.print(f'[dim]{escape("[DEBUG]")} {escape(s)}[/dim]')
+
+def print_available_elements(what, l):
+    console.print(f'[bold]AVAILABLE {what.upper()}[/bold]')
+    for key in l:
+        console.print(f'   [i dim]{key}[/dim i]')
 

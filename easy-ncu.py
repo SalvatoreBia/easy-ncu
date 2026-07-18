@@ -17,9 +17,11 @@ import sys
 import argparse
 import os
 import configparser
-import cli_repl
 import pathlib
 import section
+
+import cli_repl
+import cli_views
 
 
 CFG = 'config.cfg'
@@ -27,13 +29,13 @@ debug = False
 ncu_path = None
 
 def locate_ncu_pymodule(start='/'):
-    if debug: print(f'[DEBUG] Searching for ncu_report module in {start} folder...')
+    if debug: cli_views.print_debug_string(f'Searching for ncu_report module in {start} folder...')
     res = next(pathlib.Path(start).rglob('ncu_report.py'), None)
     if res:
         config = configparser.ConfigParser()
         config.optionxform = str
         if not os.path.exists(CFG):
-            print(f'[ERROR] {CFG} file not found.')
+            cli_views.print_error_string(f'{CFG} file not found.')
             return None
         config.read(CFG)
         s = str(res.parent) + '/'
@@ -50,7 +52,7 @@ def get_ncu_path():
         config.read(CFG)
         cached_path = config.defaults().get('NcuPythonPath')
         if cached_path and os.path.exists(cached_path):
-            if debug: print(f'[DEBUG] ncu_path found in {CFG}: {cached_path}')
+            if debug: cli_views.print_debug_string(f'ncu_path found in {CFG}: {cached_path}')
             return cached_path
     return locate_ncu_pymodule(start='/usr/')
 
@@ -58,7 +60,7 @@ ncu_path = get_ncu_path()
 if ncu_path:
     if ncu_path not in sys.path:
         sys.path.insert(0, ncu_path)
-    if debug: print(f'[DEBUG] Python environment and LD_LIBRARY_PATH updated with: {ncu_path}')
+    if debug: cli_views.print_debug_string(f'Python environment and LD_LIBRARY_PATH updated with: {ncu_path}')
     os.environ['LD_LIBRARY_PATH'] = os.environ.get('LD_LIBRARY_PATH', '') + ':' + ncu_path
 else:
     print("[ERROR] Impossibile trovare il modulo ncu_report sul sistema.")
@@ -66,12 +68,12 @@ else:
 
 try:
     import ncu_report
-    if debug: print("[DEBUG] ncu_report successfully loaded after environment setup!")
+    if debug: cli_views.print_debug_string("ncu_report successfully loaded after environment setup!")
 except ImportError:
     print(f"[ERROR] Unable to locate ncu_report.py in provided folder: {ncu_path}. Fallback to automatic resolving...") 
     ncu_path = locate_ncu_pymodule(start='/usr/')
     if not ncu_path:
-        print('[ERROR] Unable to resolve path for ncu_report.py. Check if nsight-compute is installed in your machine')
+        cli_views.print_error_string('Unable to resolve path for ncu_report.py. Check if nsight-compute is installed in your machine')
         print('        If you think it\'s an error, please report it on github: https://github.com/SalvatoreBia/easy-ncu')
         sys.exit(1)
 
@@ -81,7 +83,7 @@ except ImportError:
 
     try:
         import ncu_report
-        if debug: print("[DEBUG] ncu_report successfully loaded after automatic resolving!")
+        if debug: cli_views.print_debug_string("ncu_report successfully loaded after automatic resolving!")
     except ImportError as e:
         print(f"[ERROR] Found path {ncu_path} but still unable to import ncu_report: {e}")
         sys.exit(1)
@@ -174,19 +176,19 @@ def main():
     if args.report:
         report = args.report
         if not os.path.exists(report) or not report.endswith('.ncu-rep'):
-            print(f'[ERROR] Report not found or invalid extension at: {report}')
+            cli_views.print_error_string(f'Report not found or invalid extension at: {report}')
             sys.exit(1)
         if debug:
-            print(f'[DEBUG] Input report found at {report}')
+            cli_views.print_debug_string(f'Input report found at {report}')
         try:
             context = ncu_report.load_report(report)
             if debug:
-                print('[DEBUG] ncu report loaded')
+                cli_views.print_debug_string('ncu report loaded')
         except Exception as e:
-            print(f'[ERROR] Failed to load report: {e}')
+            cli_views.print_error_string(f'Failed to load report: {e}')
             sys.exit(1)
 
-    shell = cli_repl.EasyNcuShell(context)
+    shell = cli_repl.EasyNcuShell(context, debug)
     shell.cmdloop()
 
 if __name__ == '__main__':
