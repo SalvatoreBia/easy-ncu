@@ -112,16 +112,16 @@ def print_eval_results(rule_path, kernel_name, result):
     console.print()
 
 def print_info_string(s):
-    console.print(f'[cyan i]{s}[/i cyan]')
+    console.print(f'[cyan i]{escape(s)}[/i cyan]', highlight=False)
 
 def print_warning_string(s):
-    console.print(f'[yellow i]{s}[/i yellow]')
+    console.print(f'[yellow i]{escape(s)}[/i yellow]', highlight=False)
 
 def print_error_string(s):
-    console.print(f"[red i]{s}[/i red]")
+    console.print(f"[red i]{escape(s)}[/i red]", highlight=False)
 
 def print_debug_string(s):
-    console.print(f'[dim]{escape("[DEBUG]")} {escape(s)}[/dim]')
+    console.print(f'[dim]{escape("[DEBUG]")} {escape(s)}[/dim]', highlight=False)
 
 def print_available_elements(what, l):
     console.print(f'[bold]AVAILABLE {what.upper()}[/bold]')
