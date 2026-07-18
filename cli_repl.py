@@ -269,7 +269,7 @@ class EasyNcuShell(cmd.Cmd):
                 cli_views.print_info_string('Auto-disabled aggregation to inspect the selected kernel.')
 
             self._update_prompt()
-            cli_views.print_info_string('Targeted kernel {idx}: {self.action.name()}')
+            cli_views.print_info_string(f'Targeted kernel {idx}: {self.action.name()}')
         except ValueError:
             cli_views.print_error_string('Provide a valid kernel index.')
 
