@@ -98,11 +98,11 @@ def print_eval_results(rule_path, kernel_name, result):
     t_res = Table(box=None, show_header=False, title_justify='left')
     t_res.add_column('Output', justify='left')
 
-    aftereqlen = 10
+    aftereqlen = 3
     maxlen = len(max(result.keys(), key=len))
     for outname, val in result.items():
         tgtlen = maxlen - len(outname) + 3
-        out_str = f'<{outname}>{" " * tgtlen}'
+        out_str = f'{" " * tgtlen}<{outname}>  '
         val = val if not isinstance(val, float) else f"{val:.4f}"
         t_res.add_row(f"[cyan]{out_str}[/cyan]={" " * aftereqlen}{val}")
 

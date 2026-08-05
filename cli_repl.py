@@ -23,7 +23,7 @@ from rule_parser import RuleParser
 
 class EasyNcuShell(cmd.Cmd):
     intro = 'Welcome to easy-ncu interactive shell. Check for the commands with "help".\n'
-    prompt = '(easy-ncu)> '
+    prompt = 'easy-ncu@shell$ '
     flags_whitelist = ['aggregate.sum', 'aggregate.avg']
     logo = [
         r' _______   ________  ________       ___    ___      ________   ________  ___  ___',
@@ -77,9 +77,9 @@ class EasyNcuShell(cmd.Cmd):
                 mode = f"Agg:{self.start}-{end_idx}"
             else:
                 mode = f"Kernel {self.action_idx}"
-            self.prompt = f'(easy-ncu)[range:{self.range_idx} | {mode}]> '
+            self.prompt = f'easy-ncu@shell[range:{self.range_idx} | {mode}]$ '
         else:
-            self.prompt = '(easy-ncu)> '
+            self.prompt = 'easy-ncu@shell '
 
     def _context_init(self):
         self.range_idx = 0
